@@ -104,8 +104,8 @@ with col_m4:
 # ----------------------------------------------------------------
 # 3. 탭 구성 (EDA 및 상세 분석)
 # ----------------------------------------------------------------
-tab1, tab2, tab_prod, tab3, tab4, tab5, tab6 = st.tabs([
-    "📈 매출 & 채널", "📊 셀러 & 로열티", "📦 상품 페이지 분석", "🗺️ 지역별 분석", "🔍 경로 상세분석", "🎯 마케팅 전략", "📋 전체데이터"
+tab1, tab2, tab_prod, tab_funnel, tab3, tab4, tab5, tab6 = st.tabs([
+    "📈 매출 & 채널", "📊 셀러 & 로열티", "📦 상품 페이지 분석", "🔁 재구매 퍼널", "🗺️ 지역별 분석", "🔍 경로 상세분석", "🎯 마케팅 전략", "📋 전체데이터"
 ])
 
 # --- 탭 1: 매출 & 채널 ---
@@ -361,6 +361,89 @@ with tab_prod:
     1. **킹댕즈 참여 페이지**: 브랜드 신뢰도를 바탕으로 **'선물용'**이나 **'고급 규격(로얄과)'** 옵션에서 압도적인 전환율을 보입니다. 
     2. **일반셀러 경쟁 페이지**: 여러 셀러가 동일 페이지에서 판매하므로 **'가격 경쟁력'**과 **'가성비(대용량/가정용)'** 옵션이 매출의 핵심 동력입니다.
     3. **성공 공식 전이**: 매출 1위 페이지의 인기 옵션(예: 5kg/2-3만원대/로얄과)을 파악하여, 신규 상품 페이지 구성 시 해당 옵션을 **'메인 랜딩 옵션'**으로 배치하는 전략이 필요합니다.
+    """)
+
+
+    st.markdown("---")
+
+
+# --- 탭: 재구매 퍼널 & 패턴 (신규) ---
+with tab_funnel:
+    st.subheader("🔁 고객 재구매 퍼널 및 행동 패턴 분석")
+    st.markdown("""
+    고객이 첫 구매 이후 얼마나 다시 돌아오는지, 그리고 재방문 시 어떤 행동 변화를 보이는지 분석하여 **리텐션(Retention) 전략**을 제안합니다.
+    """)
+
+    # 1. 구매 회차별 퍼널 (Retention Funnel)
+    st.write("#### 1️⃣ 구매 회차별 고객 전환 퍼널 (Retention Funnel)")
+    # 각 회차별 유니크 고객 수 집계
+    funnel_data = f_df.groupby('재구매_날짜순서')['주문자연락처'].nunique().reset_index()
+    funnel_data.columns = ['구매회차', '고객수']
+    funnel_data['구매회차_라벨'] = funnel_data['구매회차'].apply(lambda x: f"{int(x)+1}회차 구매")
+    
+    fig_funnel = px.funnel(funnel_data, x='고객수', y='구매회차_라벨', 
+                           title="신규 유입부터 N차 재구매까지의 퍼널 현황")
+    st.plotly_chart(fig_funnel, use_container_width=True)
+
+    c_f1, c_f2 = st.columns(2)
+    
+    with c_f1:
+        # 2. 재구매 주기 분석 (Repurchase Interval)
+        st.write("#### 2️⃣ 평균 재구매 주기 및 분포")
+        # 고객별 주문 간격 계산
+        f_df_sorted = f_df.sort_values(['주문자연락처', '주문일'])
+        f_df_sorted['이전주문일'] = f_df_sorted.groupby('주문자연락처')['주문날짜'].shift(1)
+        # pd.to_datetime 이 이미 되어있으므로 날짜 차이 계산
+        f_df_sorted['구매간격'] = (pd.to_datetime(f_df_sorted['주문날짜']) - pd.to_datetime(f_df_sorted['이전주문일'])).dt.days
+        
+        # 이전 구매가 있는 (재구매인) 건들만 대상으로 주기 계산
+        intervals = f_df_sorted[f_df_sorted['구매간격'] > 0]['구매간격']
+        
+        if not intervals.empty:
+            avg_interval = intervals.mean()
+            st.metric("평균 재구매 주기", f"{avg_interval:.1f}일")
+            
+            fig_interval = px.histogram(intervals, x='구매간격', 
+                                        nbins=30, title="재구매 소요 기간 분포 (Days)",
+                                        labels={'구매간격': '소요 기간(일)', 'count': '주문 건수'})
+            st.plotly_chart(fig_interval, use_container_width=True)
+        else:
+            st.info("재구매 데이터가 부족하여 주기를 산출할 수 없습니다.")
+
+    with c_f2:
+        # 3. 회차별 평균 결제 금액 (AOV Progression)
+        st.write("#### 3️⃣ 구매 회차별 평균 객단가(AOV) 변화")
+        order_aov = f_df.groupby('재구매_날짜순서')['실결제 금액'].mean().reset_index()
+        order_aov['구매회차'] = order_aov['재구매_날짜순서'] + 1
+        
+        fig_aov_trend = px.line(order_aov, x='구매회차', y='실결제 금액', markers=True,
+                                title="구매 회차가 거듭될수록 결제액이 변하는가?",
+                                labels={'실결제 금액': '평균 결제액(원)', '구매회차': '구매 회차'})
+        st.plotly_chart(fig_aov_trend, use_container_width=True)
+
+    st.markdown("---")
+    
+    # 4. 품종 확장 패턴 (Cross-sell)
+    st.write("#### 4️⃣ 재구매 시 품종 탐색 및 확장 패턴")
+    
+    first_counts = f_df[f_df['재구매_날짜순서'] == 0]['품종'].value_counts(normalize=True).head(5).reset_index()
+    repeat_counts = f_df[f_df['재구매_날짜순서'] > 0]['품종'].value_counts(normalize=True).head(5).reset_index()
+    first_counts.columns = ['품종', '비중']
+    repeat_counts.columns = ['품종', '비중']
+    first_counts['유형'] = '첫 구매'
+    repeat_counts['유형'] = '재구매'
+    
+    cross_df = pd.concat([first_counts, repeat_counts])
+    fig_cross = px.bar(cross_df, x='비중', y='품종', color='유형', barmode='group',
+                       title="첫 구매 vs 재구매 시 주요 품종 선호도 비교",
+                       orientation='h')
+    st.plotly_chart(fig_cross, use_container_width=True)
+
+    st.success("""
+    **💡 재구매 극대화를 위한 마케팅 액션 아이템**
+    1. **이탈 방지 구간 타겟팅**: 퍼널 차트에서 급격히 숫자가 줄어드는 구간(예: 2회->3회) 직후에 **'강력한 리워드'**를 배치하세요.
+    2. **최적의 리마인드 시점**: 평균 재구매 주기가 확인되었습니다. 고객의 마지막 구매일로부터 **평균 주기 직전**에 맞춤형 할인 코드를 푸시하세요.
+    3. **카테고리 믹스 전략**: 첫 구매 시 '감귤'만 사던 고객이 재구매 시 다른 품목으로 확장되지 않는다면, **'합배송 할인'**이나 **'맛보기 샘플'**을 통해 품종 확장을 유도해야 합니다.
     """)
 
 
