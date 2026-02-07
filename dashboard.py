@@ -180,7 +180,7 @@ with tab_dash:
         daily_rev = f_df.groupby('주문날짜')['실결제 금액'].sum().reset_index()
         fig_rev_line = px.area(daily_rev, x='주문날짜', y='실결제 금액',
                                color_discrete_sequence=['#00C897'])
-        fig_rev_line.update_traces(line_shape='spline', line_width=4)
+        fig_rev_line.update_traces(line_shape='spline', line=dict(width=4))
         fig_rev_line.update_layout(
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -199,8 +199,8 @@ with tab_dash:
         daily_new_cust['누적고객'] = daily_new_cust['신규고객'].cumsum()
         
         fig_cust_line = px.line(daily_new_cust, x='주문날짜', y='누적고객',
-                                color_discrete_sequence=['#636EFA'])
-        fig_cust_line.update_traces(line_shape='spline', line_width=4, markers=True)
+                                color_discrete_sequence=['#636EFA'], markers=True)
+        fig_cust_line.update_traces(line_shape='spline', line=dict(width=4))
         fig_cust_line.update_layout(
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
