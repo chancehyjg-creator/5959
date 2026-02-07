@@ -121,9 +121,128 @@ with col_m4:
 # ----------------------------------------------------------------
 # 3. 탭 구성 (EDA 및 상세 분석)
 # ----------------------------------------------------------------
-tab1, tab2, tab_prod, tab_funnel, tab_time, tab_grade, tab_admin, tab3, tab4, tab5, tab6 = st.tabs([
-    "📈 매출 & 채널", "📊 셀러 & 로열티", "📦 상품 페이지 분석", "🔁 재구매 퍼널", "⏰ 구매 시점 분석", "💎 등급별 분석", "🏢 ADMIN 모니터링", "🗺️ 지역별 분석", "🔍 경로 상세분석", "🎯 마케팅 전략", "📋 전체데이터"
+tab_dash, tab1, tab2, tab_prod, tab_funnel, tab_time, tab_grade, tab3, tab4, tab5, tab6 = st.tabs([
+    "� Dashboard", "�📈 매출 & 채널", "📊 셀러 & 로열티", "📦 상품 페이지 분석", "🔁 재구매 퍼널", "⏰ 구매 시점 분석", "💎 등급별 분석", "🗺️ 지역별 분석", "🔍 경로 상세분석", "🎯 마케팅 전략", "📋 전체데이터"
 ])
+
+# --- 탭 0: Dashboard (신규 메인) ---
+with tab_dash:
+    st.title("Dashboard")
+    st.markdown("<p style='color: #666; font-size: 1.1rem; margin-top: -15px;'>Track your business performance at a glance</p>", unsafe_allow_html=True)
+    
+    # 데이터 준비: 주차별/일별 실적
+    f_df['주차'] = pd.to_datetime(f_df['주문날짜']).dt.isocalendar().week
+    f_df['주문일_DT'] = pd.to_datetime(f_df['주문일'])
+    
+    # WoW 계산용
+    weekly_stats = f_df.groupby('주차').agg({
+        '실결제 금액': 'sum',
+        '주문자연락처': 'nunique'
+    }).reset_index()
+    
+    if len(weekly_stats) >= 2:
+        curr_w = weekly_stats.iloc[-1]
+        prev_w = weekly_stats.iloc[-2]
+        
+        rev_wow = ((curr_w['실결제 금액'] - prev_w['실결제 금액']) / prev_w['실결제 금액'] * 100)
+        cust_wow = ((curr_w['주문자연락처'] - prev_w['주문자연락처']) / prev_w['주문자연락처'] * 100)
+    else:
+        rev_wow, cust_wow = 0, 0
+
+    # 상단 KPI 카드 (Premium Style)
+    st.markdown("""
+    <style>
+    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 700 !important; }
+    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #f0f2f6; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    </style>
+    """, unsafe_allow_html=True)
+
+    c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
+    with c_kpi1:
+        st.metric("TOTAL REVENUE", f"₩{f_df['실결제 금액'].sum():,.0f}", f"{rev_wow:+.1f}% vs last week")
+    with c_kpi2:
+        st.metric("ACTIVE CUSTOMERS", f"{f_df['주문자연락처'].nunique():,}명", f"{cust_wow:+.1f}% vs last week")
+    with c_kpi3:
+        # 평균 결제액
+        avg_rev = f_df['실결제 금액'].mean()
+        st.metric("AVG TRANSACTION", f"₩{avg_rev:,.0f}")
+    with c_kpi4:
+        # 총 주문건수
+        st.metric("TOTAL ORDERS", f"{len(f_df):,}건")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 메인 차트 영역
+    c_chart1, c_chart2 = st.columns(2)
+    
+    with c_chart1:
+        st.write("**Revenue vs Date**")
+        daily_rev = f_df.groupby('주문날짜')['실결제 금액'].sum().reset_index()
+        fig_rev_line = px.area(daily_rev, x='주문날짜', y='실결제 금액',
+                               color_discrete_sequence=['#00C897'])
+        fig_rev_line.update_traces(line_shape='spline', line_width=4)
+        fig_rev_line.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=True, gridcolor='#f0f2f6'),
+            margin=dict(l=0, r=0, t=20, b=0),
+            height=350
+        )
+        st.plotly_chart(fig_rev_line, use_container_width=True)
+
+    with c_chart2:
+        st.write("**Customer Growth**")
+        # 누적 고객 수 계산
+        first_orders = f_df.sort_values('주문일').drop_duplicates('주문자연락처')
+        daily_new_cust = first_orders.groupby('주문날짜').size().reset_index(name='신규고객')
+        daily_new_cust['누적고객'] = daily_new_cust['신규고객'].cumsum()
+        
+        fig_cust_line = px.line(daily_new_cust, x='주문날짜', y='누적고객',
+                                color_discrete_sequence=['#636EFA'])
+        fig_cust_line.update_traces(line_shape='spline', line_width=4, markers=True)
+        fig_cust_line.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=True, gridcolor='#f0f2f6'),
+            margin=dict(l=0, r=0, t=20, b=0),
+            height=350
+        )
+        st.plotly_chart(fig_cust_line, use_container_width=True)
+
+    st.markdown("---")
+
+    # 품종별 기여도 변화 (차트화)
+    st.write("#### 📊 최근 주차별 품종 매출 변동 (Performance Drill-down)")
+    
+    last_two_weeks = weekly_stats['주차'].nlargest(2).values
+    if len(last_two_weeks) == 2:
+        this_w, last_w = last_two_weeks
+        tw_df = f_df[f_df['주차'].isin([this_w, last_w])]
+        
+        # 품종별 매출 비교
+        breed_comp = tw_df.groupby(['품종', '주차'])['실결제 금액'].sum().unstack(fill_value=0).reset_index()
+        breed_comp.columns = ['품종', '지난주', '이번주']
+        breed_comp['변동액'] = breed_comp['이번주'] - breed_comp['지난주']
+        breed_comp = breed_comp.sort_values('변동액', ascending=False).head(10)
+        
+        fig_breed_delta = px.bar(breed_comp, x='변동액', y='품종', orientation='h',
+                                 color='변동액', color_continuous_scale='RdYlGn',
+                                 title="전주 대비 품종별 매출 변동액 (Top 10)")
+        st.plotly_chart(fig_breed_delta, use_container_width=True)
+    
+    # ⚠️ 취소 리스크 (기존 Admin 내용 유지)
+    with st.expander("⚠️ 최근 상품 옵션별 취소 현황 분석", expanded=False):
+        cancel_df = f_df[f_df['취소여부'] == 'Y']
+        if not cancel_df.empty:
+            option_cancel = cancel_df.groupby(['상품명', '과수 크기']).size().reset_index(name='취소건수')
+            option_cancel = option_cancel.sort_values('취소건수', ascending=False).head(10)
+            st.dataframe(option_cancel.style.background_gradient(subset=['취소건수'], cmap='Reds'),
+                         use_container_width=True, hide_index=True)
+        else:
+            st.success("최근 취소 발생 건이 없습니다.")
+
 # --- 탭 1: 매출 & 채널 ---
 with tab1:
     st.subheader("🎯 마케팅 운영 효율 상세 분석")
@@ -716,80 +835,7 @@ with tab_grade:
     """)
 
 
-# --- 탭: ADMIN 모니터링 (신규) ---
-with tab_admin:
-    st.subheader("🏢 ADMIN 통합 모니터링 (매출 변화 감지)")
-    st.markdown("""
-    단순 현황 집계를 넘어, **변화의 징후**를 포착합니다. 전주 대비 매출 성장과 위험 요소를 한눈에 관리하세요.
-    """)
 
-    # 1. 주간 성장률(WoW) 리포트
-    st.write("#### 🚀 주간 매출 가속도 (Week-over-Week)")
-    
-    # 주차별 데이터 집계
-    f_df['주차'] = pd.to_datetime(f_df['주문날짜']).dt.isocalendar().week
-    weekly_rev = f_df.groupby('주차')['실결제 금액'].sum().reset_index()
-    weekly_rev['전주매출'] = weekly_rev['실결제 금액'].shift(1)
-    weekly_rev['성장률(%)'] = ((weekly_rev['실결제 금액'] - weekly_rev['전주매출']) / weekly_rev['전주매출'] * 100).round(1)
-    
-    recent_week = weekly_rev.iloc[-1]
-    
-    c_adm1, c_adm2, c_adm3 = st.columns(3)
-    with c_adm1:
-        st.metric("이번 주 매출 (최신)", f"₩{recent_week['실결제 금액']:,.0f}", f"{recent_week['성장률(%)']}%")
-    with c_adm2:
-        st.metric("전주 대비 변동액", f"₩{recent_week['실결제 금액'] - recent_week['전주매출']:,.0f}")
-    with c_adm3:
-        # 최근 7일간 취소 발생 건수
-        cancel_cnt = f_df[f_df['취소여부'] == 'Y'].shape[0]
-        st.metric("누적 취소 건수", f"{cancel_cnt}건", delta_color="inverse")
-
-    st.markdown("---")
-
-    # 2. 품종별 매출 변동폭 (Hot & Cold 품목 탐색)
-    st.write("#### 📊 품종별 매출 기여도 변화 (전주 vs 이번주)")
-    
-    # 최근 2주차 데이터 비교
-    last_two_weeks = weekly_rev['주차'].nlargest(2).values
-    if len(last_two_weeks) == 2:
-        this_w, last_w = last_two_weeks
-        
-        tw_df = f_df[f_df['주차'].isin([this_w, last_w])]
-        pivot_breed = tw_df.pivot_table(index='품종', columns='주차', values='실결제 금액', aggfunc='sum').fillna(0)
-        pivot_breed['변동액'] = pivot_breed[this_w] - pivot_breed[last_w]
-        pivot_breed['변동률(%)'] = (pivot_breed['변동액'] / pivot_breed[last_w] * 100).replace([float('inf'), -float('inf')], 0).round(1)
-        
-        col_adm_c1, col_adm_c2 = st.columns(2)
-        with col_adm_c1:
-            st.write("**🔥 급상승 품목 Top 5**")
-            st.dataframe(pivot_breed.nlargest(5, '변동액')[['변동액', '변동률(%)']], use_container_width=True)
-        with col_adm_c2:
-            st.write("**❄️ 급하락 품목 Top 5**")
-            st.dataframe(pivot_breed.nsmallest(5, '변동액')[['변동액', '변동률(%)']], use_container_width=True)
-    
-    st.markdown("---")
-
-    # 3. 옵션별 취소 현황 분석
-    st.write("#### ⚠️ 상품 옵션별 취소 건수 Top 10 (운영 리스크 감지)")
-    
-    # 취소된 주문만 필터링하여 상품명/옵션별 집계
-    cancel_df = f_df[f_df['취소여부'] == 'Y']
-    if not cancel_df.empty:
-        # 상품명과 과수 크기를 조합하여 옵션별로 집계
-        option_cancel = cancel_df.groupby(['상품명', '과수 크기']).size().reset_index(name='취소건수')
-        option_cancel = option_cancel.sort_values('취소건수', ascending=False).head(10)
-        
-        st.dataframe(option_cancel.style.background_gradient(subset=['취소건수'], cmap='Reds'),
-                     use_container_width=True, hide_index=True)
-    else:
-        st.success("최근 취소 발생 건이 없습니다. 클린한 운영 상태입니다!")
-
-    st.info("""
-    **💡 ADMIN 액션 아이템**
-    - **급하락 품목 대응**: 매출이 급격히 빠지는 품목은 **품질 문제**가 발생했는지, 혹은 **경쟁사 특가**가 떴는지 즉시 모니터링이 필요합니다.
-    - **옵션별 취소 관리**: 특정 옵션(예: 특정 크기 품절 등)에서 취소가 집중된다면, **재고 연동 오류**나 **상품 정보 오기재** 여부를 현장과 즉시 확인하세요.
-    - **가속도 활용**: 성장률이 높은 주차에는 광고 예산을 증액하여 **'매출 노 젓기'** 전략을 추천합니다.
-    """)
 
 with tab4:
     st.subheader("기타/크롬 경로 상세 분석 (표 5)")
