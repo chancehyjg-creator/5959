@@ -404,6 +404,23 @@ with tab_funnel:
     
     st.caption("※ 잔존율(%)은 1회차 구매자(신규 유입) 대비 해당 회차까지 살아남은 고객의 비중입니다.")
 
+    # 시각화 차트 추가 (깔때기 및 잔존율 곡선)
+    col_v1, col_v2 = st.columns(2)
+    with col_v1:
+        fig_f_chart = px.funnel(funnel_data, x='고객수', y='구매회차', 
+                                title="고객 잔존 깔때기 (Funnel Shape)",
+                                color_discrete_sequence=['#636EFA'])
+        st.plotly_chart(fig_f_chart, use_container_width=True)
+    
+    with col_v2:
+        fig_r_chart = px.line(funnel_data, x='구매회차', y='잔존율(%)', markers=True,
+                              title="회차별 잔존율 추세 (Retention Curve)",
+                              text='잔존율(%)')
+        fig_r_chart.update_traces(textposition="top center")
+        st.plotly_chart(fig_r_chart, use_container_width=True)
+
+    st.markdown("---")
+
     c_f1, c_f2 = st.columns(2)
     
     with c_f1:
