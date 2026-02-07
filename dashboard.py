@@ -240,14 +240,28 @@ with tab2:
             st.plotly_chart(fig_size_p, use_container_width=True)
             
         else:
-            # 목적별 무게 x 가격대 산점도 (Scatter)
-            # 산점도를 통해 무게와 가격의 상관관계 및 클러스터 파악
-            fig_scatter_p = px.scatter(citrus_df, x='무게 구분', y='실결제 금액', color='구매목적',
-                                       size='실결제 금액', hover_data=['과수 크기'],
-                                       title="구매 목적별 무게 vs 가격 클러스터링",
-                                       labels={'실결제 금액': '결제 금액(원)', '무게 구분': '무게(kg)'},
-                                       color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'})
-            st.plotly_chart(fig_scatter_p, use_container_width=True)
+            # 목적별 무게 및 가격대 분포 (Grouped Bar)
+            st.write("#### ⚖️ 무게 및 가격대별 시장 규모 비교")
+            c_dist1, c_dist2 = st.columns(2)
+            
+            with c_dist1:
+                # 1. 무게별 분포
+                weight_p = citrus_df.groupby(['구매목적', '무게 구분']).size().reset_index(name='주문건수')
+                fig_weight_p = px.bar(weight_p, x='무게 구분', y='주문건수', color='구매목적', barmode='group',
+                                      title="구매 목적별 선호 무게(kg) 비교",
+                                      color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'},
+                                      text_auto=True)
+                st.plotly_chart(fig_weight_p, use_container_width=True)
+                
+            with c_dist2:
+                # 2. 가격대별 분포
+                price_p = citrus_df.groupby(['구매목적', '가격대']).size().reset_index(name='주문건수')
+                # 가격대 정렬 (가능한 경우)
+                fig_price_p = px.bar(price_p, x='가격대', y='주문건수', color='구매목적', barmode='group',
+                                     title="구매 목적별 선호 가격대 비교",
+                                     color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'},
+                                     text_auto=True)
+                st.plotly_chart(fig_price_p, use_container_width=True)
 
         # 목적별 요약 인사이트 표
         st.write("**� 구매 목적별 베스트 옵션 요약**")
