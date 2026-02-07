@@ -92,36 +92,101 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 # --- 탭 1: 매출 & 채널 ---
 with tab1:
-    st.subheader("매출 추이 및 채널 기여도 (그래프 1, 2, 3)")
-    # [그래프 1] 시계열 매출 추이
-    trend = f_df.groupby(['주문날짜', '그룹'])['실결제 금액'].sum().reset_index()
-    fig1 = px.line(trend, x='주문날짜', y='실결제 금액', color='그룹', markers=True, title="일일 매출 추이")
-    st.plotly_chart(fig1, use_container_width=True)
+    st.subheader("🎯 마케팅 운영 효율 상세 분석")
+    st.markdown("""
+    일별 매출과 셀러 활동성을 교차 분석하여 **운영 효율성**을 진단합니다. 
+    셀러가 특정 요일에 몰린다면 해당 시점의 **경쟁 밀도**를 파악하고 광고 집행 시점을 조절해야 합니다.
+    """)
 
-    # [신규 추가: 그래프 1-2] 일별 활동 셀러 수 추이
-    st.subheader("일별 활동 셀러 수 추이")
-    active_sellers = f_df.groupby(['주문날짜', '그룹'])['셀러명'].nunique().reset_index(name='셀러수')
-    fig1_2 = px.line(active_sellers, x='주문날짜', y='셀러수', color='그룹', markers=True, 
-                     title="일자별 실제 주문이 발생한 셀러 수 변화",
-                     labels={'주문날짜': '날짜', '셀러수': '활동 셀러 수'})
-    st.plotly_chart(fig1_2, use_container_width=True)
-
-    c1, c2 = st.columns([2, 1])
+    # 1. 요일별 매출 및 셀러 활동성 (마케팅 타이밍 결정)
+    st.write("#### 1️⃣ 요일별 마케팅 효율 (어느 요일에 예산을 쓸 것인가?)")
+    f_df['요일'] = f_df['주문일'].dt.day_name()
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    weekday_stats = f_df.groupby(['요일', '그룹']).agg({
+        '실결제 금액': 'sum',
+        '셀러명': 'nunique'
+    }).reindex(day_order, level=0).reset_index()
+    
+    c1, c2 = st.columns(2)
     with c1:
-        # [그래프 2] 채널별 매출 비중
-        ch_rev = f_df.groupby('주문경로')['실결제 금액'].sum().reset_index()
-        fig2 = px.pie(ch_rev, values='실결제 금액', names='주문경로', hole=0.4, title="채널별 매출 비중")
-        st.plotly_chart(fig2, use_container_width=True)
+        fig_day_rev = px.bar(weekday_stats, x='요일', y='실결제 금액', color='그룹', barmode='group',
+                              title="요일별 총 매출 합계", text_auto='.2s')
+        st.plotly_chart(fig_day_rev, use_container_width=True)
+    with c2:
+        fig_day_sel = px.line(weekday_stats, x='요일', y='셀러명', color='그룹', markers=True,
+                               title="요일별 활동 셀러 수 (공급 밀도)")
+        st.plotly_chart(fig_day_sel, use_container_width=True)
 
-    # [그래프 3] 채널별 평균 결제액
-    ch_aov = f_df.groupby('주문경로')['실결제 금액'].mean().sort_values(ascending=False).reset_index()
-    fig3 = px.bar(ch_aov, x='주문경로', y='실결제 금액', color='주문경로', title="채널별 건당 평균 결제액(AOV)")
-    st.plotly_chart(fig3, use_container_width=True)
+    # 2. 셀러당 평균 생산성 (활동 대비 수익성)
+    st.write("#### 2️⃣ 셀러당 평균 매출 생산성 (셀러 수가 많아지는 것이 유리한가?)")
+    weekday_stats['인당매출'] = weekday_stats['실결제 금액'] / weekday_stats['셀러명']
+    fig_prod = px.area(weekday_stats, x='요일', y='인당매출', color='그룹', 
+                        title="요일별 셀러 1인당 평균 기여 매출",
+                        labels={'인당매출': '평균 매출(원/명)'})
+    st.plotly_chart(fig_prod, use_container_width=True)
 
-    # [표 1] 채널 성과 요약
-    st.subheader("📝 채널별 성과 요약 (표 1)")
-    ch_sum = f_df.groupby('주문경로').agg({'실결제 금액':'sum', '주문번호':'count'}).rename(columns={'실결제 금액':'매출', '주문번호':'건수'}).reset_index()
+    st.markdown("---")
+
+    # 3. 채널별 AOV 및 파레토 분석 (VIP 채널/셀러 식별)
+    st.write("#### 3️⃣ 채널별 건당 결제액(AOV) 및 매출 기여도")
+    col_p1, col_p2 = st.columns(2)
+    
+    with col_p1:
+        # 채널별 AOV
+        ch_aov = f_df.groupby('주문경로')['실결제 금액'].mean().sort_values(ascending=False).reset_index()
+        fig_aov = px.bar(ch_aov, x='실결제 금액', y='주문경로', orientation='h', color='실결제 금액',
+                          title="채널별 건당 평균 결제액(AOV)", text_auto='.0f')
+        st.plotly_chart(fig_aov, use_container_width=True)
+        
+    with col_p2:
+        # 셀러 매출 파레토 (상위 20%가 80%를 만드는가?)
+        sel_contri = f_df.groupby('셀러명')['실결제 금액'].sum().sort_values(ascending=False).reset_index()
+        sel_contri['누적매출비중'] = (sel_contri['실결제 금액'].cumsum() / sel_contri['실결제 금액'].sum()) * 100
+        sel_contri['셀러순위비중'] = (range(1, len(sel_contri)+1) / len(sel_contri)) * 100
+        
+        fig_pareto = px.line(sel_contri, x='셀러순위비중', y='누적매출비중',
+                              title="셀러 매출 기여도(파레토 곡선)",
+                              labels={'셀러순위비중': '셀러 상위 %', '누적매출비중': '누적 매출 비중(%)'})
+        fig_pareto.add_hline(y=80, line_dash="dot", annotation_text="80% 매출 지점")
+        st.plotly_chart(fig_pareto, use_container_width=True)
+
+    # 4. 신규 vs 재구매 매출 추이 (성장 동력 진단)
+    st.write("#### 4️⃣ 신규 vs 재구매 매출 비중 추이 (성장의 질 분석)")
+    f_df['고객유형'] = f_df['재구매 횟수'].apply(lambda x: '재구매 고객' if x > 0 else '신규 고객')
+    type_trend = f_df.groupby(['주문날짜', '고객유형'])['실결제 금액'].sum().reset_index()
+    fig_type = px.area(type_trend, x='주문날짜', y='실결제 금액', color='고객유형',
+                        title="일자별 신규 vs 재구매 매출 구성 추이")
+    st.plotly_chart(fig_type, use_container_width=True)
+
+    # 5. 채널 성과 요약 표
+    st.subheader("📝 채널별 성과 지표 요약 (Raw Data)")
+    ch_sum = f_df.groupby('주문경로').agg({
+        '실결제 금액': 'sum',
+        '주문번호': 'count',
+        '재구매 횟수': lambda x: (x > 0).mean() * 100
+    }).rename(columns={'실결제 금액': '매출', '주문번호': '건수', '재구매 횟수': '재구매비중(%)'}).reset_index()
     st.dataframe(ch_sum.sort_values(by='매출', ascending=False), hide_index=True, use_container_width=True)
+
+    # 마케팅 전략 제언 섹션 추가
+    st.markdown("---")
+    with st.expander("💡 **요일별 셀러 집중 시 마케팅 전략 제언**", expanded=True):
+        st.info("""
+        특정 요일에 셀러와 상품이 집중될 경우, 마케터는 다음과 같은 입체적인 전략을 구사할 수 있습니다.
+
+        1. **경쟁 밀도 기반 구매 전환 강화 (FOMO 전략)**
+           - 셀러가 몰리는 요일은 고객 유입량도 많을 가능성이 높습니다. 
+           - **'오늘만 이 가격'**, **'현재 OOO명 구매 중'** 등 실시간 활동성 데이터를 강조하여 고객의 빠른 의사결정을 유도하세요.
+
+        2. **광고 예산 집행 최적화 (Bidding 전략)**
+           - 경쟁 셀러가 많은 요일은 키워드 광고 단가(CPC)가 상승합니다. 
+           - 오히려 셀러 활동이 적은 '비수기 요일'에 **'틈새 타임 특가'**를 운영하여 저렴한 비용으로 노출을 확보하는 역발상 전략이 필요합니다.
+
+        3. **물류 부하 분산 및 고객 경험 관리 (SCM 연계)**
+           - 특정 요일 주문 폭주일 경우 배송 지연이 발생할 수 있습니다. 
+           - **'예약 구매 시 추가 포인트'** 또는 **'주말 집하 시 무료 배송'** 등의 혜택을 제공하여 주문을 분산시키고 서비스 품질을 유지하세요.
+        """)
+
 
 # --- 탭 2: 셀러 & 로열티 ---
 with tab2:
