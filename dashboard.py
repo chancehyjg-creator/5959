@@ -155,19 +155,77 @@ with tab2:
 
 # --- 탭 3: 지역별 분석 ---
 with tab3:
-    st.subheader("지역별 매출 및 연계 분석 (그래프 6, 표 4)")
-    # [그래프 6] 지역별 총 매출
-    reg_rev = f_df.groupby('광역지역(정식)')['실결제 금액'].sum().sort_values(ascending=False).reset_index()
-    fig6 = px.bar(reg_rev, x='광역지역(정식)', y='실결제 금액', color='실결제 금액', title="지역별 매출 규모")
-    st.plotly_chart(fig6, use_container_width=True)
+    st.subheader("🗺️ 지역별 입체 분석 및 전략적 클러스터링")
+    st.markdown("전국 지역별 매출 분포와 주문 경로, 셀러 간의 상관관계를 한눈에 파악할 수 있도록 시각화하였습니다.")
 
-    # [표 4] 지역 x 경로 x 셀러 베스트 조합
-    st.subheader("📍 지역별 베스트 [경로 x 셀러] 조합")
-    sel_reg = st.selectbox("조합을 확인할 지역", options=reg_rev['광역지역(정식)'].tolist())
-    reg_df = f_df[f_df['광역지역(정식)'] == sel_reg]
-    best_combo = reg_df.groupby(['주문경로', '셀러명'])['실결제 금액'].sum().nlargest(5).reset_index()
-    best_combo.columns = ['주문경로', '셀러명', '매출합계']
-    st.table(best_combo)
+    # 1. 시각적 클러스터링: 매출 vs 재구매율 (지역 성격 분류)
+    st.subheader("1. 지역별 성격 분류 (매출 규모 vs 재구매 로열티)")
+    
+    reg_stats = f_df.groupby('광역지역(정식)').agg({
+        '실결제 금액': 'sum',
+        '재구매 횟수': lambda x: (x > 0).mean() * 100,
+        '주문번호': 'count'
+    }).reset_index()
+    reg_stats.columns = ['지역', '총매출', '재구매율', '주문건수']
+    
+    fig_reg_cluster = px.scatter(reg_stats, x='총매출', y='재구매율', size='주문건수', color='지역',
+                                 text='지역', title="지역별 매출-로열티 클러스터 현황",
+                                 labels={'총매출': '총 매출액(원)', '재구매율': '재구매 비중(%)'})
+    # 평균선 추가 (클러스터 구분선)
+    fig_reg_cluster.add_hline(y=reg_stats['재구매율'].mean(), line_dash="dot", annotation_text="평균 재구매율")
+    fig_reg_cluster.add_vline(x=reg_stats['총매출'].mean(), line_dash="dot", annotation_text="평균 매출액")
+    st.plotly_chart(fig_reg_cluster, use_container_width=True)
+    
+    st.info("""
+    **[클러스터 해석 가이드]**
+    - **우상단 (Star)**: 매출도 높고 재구매도 활발한 핵심 공략 지역
+    - **우하단 (Growth)**: 매출은 높으나 재구매가 낮은 신규 유입 중심 지역
+    - **좌상단 (Loyalty)**: 매출 규모는 작으나 충성도가 높은 알짜 지역
+    """)
+
+    st.markdown("---")
+
+    # 2. 계층형 분석: 지역 > 경로 > 셀러 (Sunburst)
+    st.subheader("2. 상위 지역별 유입 경로 및 셀러 계층 구조 (Top 5 지역)")
+    top5_regions = reg_stats.nlargest(5, '총매출')['지역'].tolist()
+    hierarchy_df = f_df[f_df['광역지역(정식)'].isin(top5_regions)]
+    
+    fig_sunburst = px.sunburst(hierarchy_df, path=['광역지역(정식)', '주문경로', '셀러명'], 
+                                values='실결제 금액', title="지역-경로-셀러 매출 비중 계층도",
+                                color='광역지역(정식)', color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig_sunburst, use_container_width=True)
+
+    st.markdown("---")
+
+    # 3. 통합 요약표: 전국 지역별 '최강 조합' 한눈에 보기
+    st.subheader("3. 🏆 전국 지역별 베스트 [경로 x 셀러] 통합 리포트")
+    
+    # 지역별로 가장 매출이 높은 경로x셀러 조합 추출
+    best_combi_all = f_df.groupby(['광역지역(정식)', '주문경로', '셀러명'])['실결제 금액'].sum().reset_index()
+    idx = best_combi_all.groupby('광역지역(정식)')['실결제 금액'].idxmax()
+    best_combi_summary = best_combi_all.loc[idx].sort_values(by='실결제 금액', ascending=False)
+    best_combi_summary.columns = ['지역', '베스트 경로', '베스트 셀러', '매출합계']
+    
+    st.dataframe(best_combi_summary.style.background_gradient(subset=['매출합계'], cmap='Blues'),
+                 use_container_width=True, hide_index=True)
+
+    # 4. 상세 조회 (기존 기능 강화)
+    with st.expander("🔍 특정 지역 상세 데이터 조회"):
+        sel_reg = st.selectbox("상세 분석할 지역 선택", options=reg_stats['지역'].tolist())
+        c_reg1, c_reg2 = st.columns(2)
+        
+        reg_df_detail = f_df[f_df['광역지역(정식)'] == sel_reg]
+        
+        with c_reg1:
+            st.write(f"**[{sel_reg}] 경로별 기여도**")
+            path_pie = px.pie(reg_df_detail, values='실결제 금액', names='주문경로', hole=0.3)
+            st.plotly_chart(path_pie, use_container_width=True)
+        
+        with c_reg2:
+            st.write(f"**[{sel_reg}] 상위 셀러 Top 5**")
+            top_sel_bar = px.bar(reg_df_detail.groupby('셀러명')['실결제 금액'].sum().nlargest(5).reset_index(),
+                                 x='실결제 금액', y='셀러명', orientation='h', color='실결제 금액')
+            st.plotly_chart(top_sel_bar, use_container_width=True)
 
 # --- 탭 4: 경로 상세분석 ---
 with tab4:
