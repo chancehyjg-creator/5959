@@ -42,6 +42,12 @@ def load_and_process_data():
     # 인플루언서 그룹핑
     df['그룹'] = df['셀러명'].apply(lambda x: '킹댕즈' if x == '킹댕즈' else '일반 셀러')
     
+    # 4. 재구매 정의 수정 (사용자 요청: 주문일이 다른 날짜인 경우만 재구매로 인정)
+    # 고객 식별은 '주문자연락처'를 기준으로 합니다.
+    df = df.sort_values(by=['주문자연락처', '주문일'])
+    df['최초주문일'] = df.groupby('주문자연락처')['주문날짜'].transform('min')
+    df['재구매여부'] = df['주문날짜'] > df['최초주문일']
+    
     return df
 
 df = load_and_process_data()
@@ -80,8 +86,8 @@ with col_m2:
 with col_m3:
     st.metric("평균 객단가", f"₩{f_df['실결제 금액'].mean():,.0f}")
 with col_m4:
-    repeat_rate = (f_df['재구매 횟수'] > 0).mean() * 100
-    st.metric("재구매 비중", f"{repeat_rate:.1f}%")
+    repeat_rate = f_df['재구매여부'].mean() * 100
+    st.metric("재구매 비중 (날짜기준)", f"{repeat_rate:.1f}%")
 
 # ----------------------------------------------------------------
 # 3. 탭 구성 (EDA 및 상세 분석)
@@ -164,8 +170,8 @@ with tab1:
     ch_sum = f_df.groupby('주문경로').agg({
         '실결제 금액': 'sum',
         '주문번호': 'count',
-        '재구매 횟수': lambda x: (x > 0).mean() * 100
-    }).rename(columns={'실결제 금액': '매출', '주문번호': '건수', '재구매 횟수': '재구매비중(%)'}).reset_index()
+        '재구매여부': lambda x: x.mean() * 100
+    }).rename(columns={'실결제 금액': '매출', '주문번호': '건수', '재구매여부': '재구매비중(%)'}).reset_index()
     st.dataframe(ch_sum.sort_values(by='매출', ascending=False), hide_index=True, use_container_width=True)
 
     # 마케팅 전략 제언 섹션 추가
@@ -213,7 +219,7 @@ with tab2:
         # [표 3] 재구매율 높은 셀러 (30건 이상)
         st.write("**재구매 로열티가 높은 셀러**")
         counts = f_df.groupby('셀러명').size()
-        repeats = f_df[f_df['재구매 횟수'] > 0].groupby('셀러명').size()
+        repeats = f_df[f_df['재구매여부'] == True].groupby('셀러명').size()
         r_ratio = (repeats / counts * 100).fillna(0).loc[counts[counts>=30].index].nlargest(10).reset_index()
         r_ratio.columns = ['셀러명', '재구매율(%)']
         st.dataframe(r_ratio, use_container_width=True)
@@ -228,7 +234,7 @@ with tab3:
     
     reg_stats = f_df.groupby('광역지역(정식)').agg({
         '실결제 금액': 'sum',
-        '재구매 횟수': lambda x: (x > 0).mean() * 100,
+        '재구매여부': lambda x: x.mean() * 100,
         '주문번호': 'count'
     }).reset_index()
     reg_stats.columns = ['지역', '총매출', '재구매율', '주문건수']
@@ -308,7 +314,7 @@ with tab4:
     
     # [표 5] 신규 vs 기존 유입 분석
     st.write("**신규 유입 고객 vs 기존 고객 재방문 비중**")
-    detail_paths['유형'] = detail_paths['재구매 횟수'].apply(lambda x: '신규' if x == 0 else '기존')
+    detail_paths['유형'] = detail_paths['재구매여부'].apply(lambda x: '기존' if x else '신규')
     path_summary = detail_paths.groupby(['주문경로', '유형']).size().unstack(fill_value=0)
     st.table(path_summary)
 
@@ -368,14 +374,14 @@ with tab5:
     with col_c1:
         # 킹댕즈 그룹 재구매 비중
         kd_df = f_df[f_df['그룹'] == '킹댕즈']
-        kd_repeat = kd_df['재구매 횟수'].apply(lambda x: '재구매' if x > 0 else '신규').value_counts()
+        kd_repeat = kd_df['재구매여부'].apply(lambda x: '재구매' if x else '신규').value_counts()
         fig_c1 = px.pie(values=kd_repeat.values, names=kd_repeat.index, hole=0.5,
                          title="킹댕즈 그룹 신규 vs 재구매 비중", color_discrete_sequence=px.colors.sequential.RdBu)
         st.plotly_chart(fig_c1, use_container_width=True)
     with col_c2:
         # 일반 셀러 그룹 재구매 비중
         gen_df = f_df[f_df['그룹'] == '일반 셀러']
-        gen_repeat = gen_df['재구매 횟수'].apply(lambda x: '재구매' if x > 0 else '신규').value_counts()
+        gen_repeat = gen_df['재구매여부'].apply(lambda x: '재구매' if x else '신규').value_counts()
         fig_c2 = px.pie(values=gen_repeat.values, names=gen_repeat.index, hole=0.5,
                          title="일반 셀러 그룹 신규 vs 재구매 비중", color_discrete_sequence=px.colors.sequential.Greens)
         st.plotly_chart(fig_c2, use_container_width=True)
