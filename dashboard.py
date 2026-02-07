@@ -45,8 +45,11 @@ def load_and_process_data():
     # 4. 재구매 정의 수정 (사용자 요청: 주문일이 다른 날짜인 경우만 재구매로 인정)
     # 고객 식별은 '주문자연락처'를 기준으로 합니다.
     df = df.sort_values(by=['주문자연락처', '주문일'])
+    
+    # 각 고객별로 주문날짜의 순서를 매깁니다 (첫 방문일=0, 이후 방문날짜마다 +1)
+    df['재구매_날짜순서'] = df.groupby('주문자연락처')['주문날짜'].transform(lambda x: x.map({d: i for i, d in enumerate(sorted(x.unique()))}))
+    df['재구매여부'] = df['재구매_날짜순서'] > 0
     df['최초주문일'] = df.groupby('주문자연락처')['주문날짜'].transform('min')
-    df['재구매여부'] = df['주문날짜'] > df['최초주문일']
     
     # 5. 구매 목적 분류 (Heuristic: 과수 크기와 가격대를 조합하여 추정)
     def classify_purpose(row):
