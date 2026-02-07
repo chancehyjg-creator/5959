@@ -769,23 +769,25 @@ with tab_admin:
     
     st.markdown("---")
 
-    # 3. 이상 징후 감지 테이블 (지역 x 채널)
-    st.write("#### ⚠️ 채널별 취소율 & 이상 징후 관리")
+    # 3. 옵션별 취소 현황 분석
+    st.write("#### ⚠️ 상품 옵션별 취소 건수 Top 10 (운영 리스크 감지)")
     
-    risk_stats = f_df.groupby('주문경로').agg({
-        '주문번호': 'count',
-        '취소여부': lambda x: (x == 'Y').mean() * 100,
-        '실결제 금액': 'mean'
-    }).reset_index()
-    risk_stats.columns = ['채널', '총주문', '취소율(%)', '평균객단가']
-    
-    st.dataframe(risk_stats.style.highlight_max(subset=['취소율(%)'], color='#FFBD45').format({'취소율(%)': '{:.1f}%', '평균객단가': '{:,.0f}원'}), 
-                 use_container_width=True, hide_index=True)
+    # 취소된 주문만 필터링하여 상품명/옵션별 집계
+    cancel_df = f_df[f_df['취소여부'] == 'Y']
+    if not cancel_df.empty:
+        # 상품명과 과수 크기를 조합하여 옵션별로 집계
+        option_cancel = cancel_df.groupby(['상품명', '과수 크기']).size().reset_index(name='취소건수')
+        option_cancel = option_cancel.sort_values('취소건수', ascending=False).head(10)
+        
+        st.dataframe(option_cancel.style.background_gradient(subset=['취소건수'], cmap='Reds'),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.success("최근 취소 발생 건이 없습니다. 클린한 운영 상태입니다!")
 
     st.info("""
     **💡 ADMIN 액션 아이템**
     - **급하락 품목 대응**: 매출이 급격히 빠지는 품목은 **품질 문제**가 발생했는지, 혹은 **경쟁사 특가**가 떴는지 즉시 모니터링이 필요합니다.
-    - **취소율 관리**: 특정 채널의 취소율이 평균 대비 높다면, 해당 채널의 **상품 안내 문구**나 **배송 기간 고지**에 혼선이 있는지 점검하세요.
+    - **옵션별 취소 관리**: 특정 옵션(예: 특정 크기 품절 등)에서 취소가 집중된다면, **재고 연동 오류**나 **상품 정보 오기재** 여부를 현장과 즉시 확인하세요.
     - **가속도 활용**: 성장률이 높은 주차에는 광고 예산을 증액하여 **'매출 노 젓기'** 전략을 추천합니다.
     """)
 
