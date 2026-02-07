@@ -213,35 +213,17 @@ with tab_dash:
 
     st.markdown("---")
 
-    # 품종별 기여도 변화 (차트화)
-    st.write("#### 📊 최근 주차별 품종 매출 변동 (Performance Drill-down)")
-    
-    last_two_weeks = weekly_stats['주차'].nlargest(2).values
-    if len(last_two_weeks) == 2:
-        this_w, last_w = last_two_weeks
-        tw_df = f_df[f_df['주차'].isin([this_w, last_w])]
-        
-        # 품종별 매출 비교
-        breed_comp = tw_df.groupby(['품종', '주차'])['실결제 금액'].sum().unstack(fill_value=0).reset_index()
-        breed_comp.columns = ['품종', '지난주', '이번주']
-        breed_comp['변동액'] = breed_comp['이번주'] - breed_comp['지난주']
-        breed_comp = breed_comp.sort_values('변동액', ascending=False).head(10)
-        
-        fig_breed_delta = px.bar(breed_comp, x='변동액', y='품종', orientation='h',
-                                 color='변동액', color_continuous_scale='RdYlGn',
-                                 title="전주 대비 품종별 매출 변동액 (Top 10)")
-        st.plotly_chart(fig_breed_delta, use_container_width=True)
-    
-    # ⚠️ 취소 리스크 (기존 Admin 내용 유지)
-    with st.expander("⚠️ 최근 상품 옵션별 취소 현황 분석", expanded=False):
-        cancel_df = f_df[f_df['취소여부'] == 'Y']
-        if not cancel_df.empty:
-            option_cancel = cancel_df.groupby(['상품명', '과수 크기']).size().reset_index(name='취소건수')
-            option_cancel = option_cancel.sort_values('취소건수', ascending=False).head(10)
-            st.dataframe(option_cancel.style.background_gradient(subset=['취소건수'], cmap='Reds'),
-                         use_container_width=True, hide_index=True)
-        else:
-            st.success("최근 취소 발생 건이 없습니다.")
+    # ⚠️ 취소 리스크 분석 (상시 노출)
+    st.write("#### ⚠️ 최근 상품 옵션별 취소 현황 분석")
+    cancel_df = f_df[f_df['취소여부'] == 'Y']
+    if not cancel_df.empty:
+        option_cancel = cancel_df.groupby(['상품명', '과수 크기']).size().reset_index(name='취소건수')
+        option_cancel = option_cancel.sort_values('취소건수', ascending=False).head(10)
+        st.dataframe(option_cancel.style.background_gradient(subset=['취소건수'], cmap='Reds'),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.success("최근 취소 발생 건이 없습니다. 모든 운영이 원활합니다.")
+
 
 # --- 탭 1: 매출 & 채널 ---
 with tab1:
