@@ -209,6 +209,53 @@ with tab2:
         fig5 = px.bar(sel_rev, x='실결제 금액', y='셀러명', orientation='h', color='실결제 금액', title="매출 상위 셀러")
         st.plotly_chart(fig5, use_container_width=True)
 
+    st.markdown("---")
+    # --- [신규 추가] 감귤 품종 상세 옵션 클러스터링 ---
+    st.subheader("🍊 감귤 품종 상세 옵션 분석 (Winning Strategy)")
+    st.markdown("전체 품종 중 매출과 판매량 1위인 '감귤'의 세부 옵션(크기, 무게, 가격)을 클러스터링하여 인기 요인을 분석합니다.")
+    
+    citrus_df = f_df[f_df['품종'] == '감귤'].copy()
+    
+    if not citrus_df.empty:
+        col_c1, col_c2 = st.columns([1, 2])
+        
+        with col_c1:
+            # 1. 크기별 선호도 (로얄과 vs 소과 등)
+            size_dist = citrus_df.groupby('과수 크기').size().reset_index(name='건수')
+            fig_size = px.pie(size_dist, values='건수', names='과수 크기', hole=0.5, 
+                             title="감귤 크기(Size)별 주문 비중",
+                             color_discrete_sequence=px.colors.sequential.YlOrBr_r)
+            st.plotly_chart(fig_size, use_container_width=True)
+            
+        with col_c2:
+            # 2. 무게 x 가격대 클러스터링 (Treemap)
+            # 어떤 무게의 어떤 가격대가 가장 파괴력이 높은가?
+            fig_tree = px.treemap(citrus_df, path=['무게 구분', '가격대'], values='실결제 금액',
+                                  title="감귤 무게 x 가격대별 매출 클러스터",
+                                  color='실결제 금액', color_continuous_scale='Oranges',
+                                  labels={'실결제 금액': '매출액'})
+            st.plotly_chart(fig_tree, use_container_width=True)
+            
+        # 3. 옵션별 성과 요약 테이블
+        st.write("**📊 감귤 베스트 옵션 조합 TOP 10**")
+        citrus_combi = citrus_df.groupby(['과수 크기', '무게 구분', '가격대']).agg({
+            '실결제 금액': 'sum',
+            '주문번호': 'count'
+        }).rename(columns={'실결제 금액': '총매출', '주문번호': '주문건수'}).reset_index()
+        
+        st.dataframe(citrus_combi.sort_values(by='총매출', ascending=False).head(10), 
+                     use_container_width=True, hide_index=True)
+        
+        st.info("""
+        **💡 데이터 분석 인사이트**
+        - **트리맵 해석**: 면적이 가장 넓은 칸이 현재 시장에서 가장 인기가 많은 '메인 옵션'입니다.
+        - **크기 전략**: '로얄과' 혹은 '혼합과' 비중이 높다면 상품성 유지에 총력을 기울여야 하며, 특정 가격대가 지배적이라면 해당 가격이 고객의 '심리적 저항선'임을 파악하여 프로모션을 설계해야 합니다.
+        """)
+    else:
+        st.warning("데이터 내 '감귤' 품종에 대한 상세 정보가 부족합니다.")
+    st.markdown("---")
+
+
     st.subheader("🏅 로열티 지표 요약 (표 2, 3)")
     c5, c6 = st.columns(2)
     with c5:
