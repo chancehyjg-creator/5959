@@ -1,0 +1,6 @@
+streamlit==1.53.1
+pandas==2.3.3
+plotly==6.5.2
+seaborn==0.13.2
+matplotlib==3.10.8
+pyarrow==22.0.0
