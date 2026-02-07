@@ -143,7 +143,7 @@ with tab1:
         # 셀러 매출 파레토 (상위 20%가 80%를 만드는가?)
         sel_contri = f_df.groupby('셀러명')['실결제 금액'].sum().sort_values(ascending=False).reset_index()
         sel_contri['누적매출비중'] = (sel_contri['실결제 금액'].cumsum() / sel_contri['실결제 금액'].sum()) * 100
-        sel_contri['셀러순위비중'] = (range(1, len(sel_contri)+1) / len(sel_contri)) * 100
+        sel_contri['셀러순위비중'] = (sel_contri.index + 1) / len(sel_contri) * 100
         
         fig_pareto = px.line(sel_contri, x='셀러순위비중', y='누적매출비중',
                               title="셀러 매출 기여도(파레토 곡선)",
