@@ -716,6 +716,80 @@ with tab_grade:
       - **전략**: '가성비' 강조만으로는 한계가 있습니다. **'정기 구독'**이나 **'멤버십 포인트'** 제도를 도입하여 고정적인 재방문 유인(Lock-in)을 만들어야 합니다.
     """)
 
+
+# --- 탭: ADMIN 모니터링 (신규) ---
+with tab_admin:
+    st.subheader("🏢 ADMIN 통합 모니터링 (매출 변화 감지)")
+    st.markdown("""
+    단순 현황 집계를 넘어, **변화의 징후**를 포착합니다. 전주 대비 매출 성장과 위험 요소를 한눈에 관리하세요.
+    """)
+
+    # 1. 주간 성장률(WoW) 리포트
+    st.write("#### 🚀 주간 매출 가속도 (Week-over-Week)")
+    
+    # 주차별 데이터 집계
+    f_df['주차'] = pd.to_datetime(f_df['주문날짜']).dt.isocalendar().week
+    weekly_rev = f_df.groupby('주차')['실결제 금액'].sum().reset_index()
+    weekly_rev['전주매출'] = weekly_rev['실결제 금액'].shift(1)
+    weekly_rev['성장률(%)'] = ((weekly_rev['실결제 금액'] - weekly_rev['전주매출']) / weekly_rev['전주매출'] * 100).round(1)
+    
+    recent_week = weekly_rev.iloc[-1]
+    
+    c_adm1, c_adm2, c_adm3 = st.columns(3)
+    with c_adm1:
+        st.metric("이번 주 매출 (최신)", f"₩{recent_week['실결제 금액']:,.0f}", f"{recent_week['성장률(%)']}%")
+    with c_adm2:
+        st.metric("전주 대비 변동액", f"₩{recent_week['실결제 금액'] - recent_week['전주매출']:,.0f}")
+    with c_adm3:
+        # 최근 7일간 취소 발생 건수
+        cancel_cnt = f_df[f_df['취소여부'] == 'Y'].shape[0]
+        st.metric("누적 취소 건수", f"{cancel_cnt}건", delta_color="inverse")
+
+    st.markdown("---")
+
+    # 2. 품종별 매출 변동폭 (Hot & Cold 품목 탐색)
+    st.write("#### 📊 품종별 매출 기여도 변화 (전주 vs 이번주)")
+    
+    # 최근 2주차 데이터 비교
+    last_two_weeks = weekly_rev['주차'].nlargest(2).values
+    if len(last_two_weeks) == 2:
+        this_w, last_w = last_two_weeks
+        
+        tw_df = f_df[f_df['주차'].isin([this_w, last_w])]
+        pivot_breed = tw_df.pivot_table(index='품종', columns='주차', values='실결제 금액', aggfunc='sum').fillna(0)
+        pivot_breed['변동액'] = pivot_breed[this_w] - pivot_breed[last_w]
+        pivot_breed['변동률(%)'] = (pivot_breed['변동액'] / pivot_breed[last_w] * 100).replace([float('inf'), -float('inf')], 0).round(1)
+        
+        col_adm_c1, col_adm_c2 = st.columns(2)
+        with col_adm_c1:
+            st.write("**🔥 급상승 품목 Top 5**")
+            st.dataframe(pivot_breed.nlargest(5, '변동액')[['변동액', '변동률(%)']], use_container_width=True)
+        with col_adm_c2:
+            st.write("**❄️ 급하락 품목 Top 5**")
+            st.dataframe(pivot_breed.nsmallest(5, '변동액')[['변동액', '변동률(%)']], use_container_width=True)
+    
+    st.markdown("---")
+
+    # 3. 이상 징후 감지 테이블 (지역 x 채널)
+    st.write("#### ⚠️ 채널별 취소율 & 이상 징후 관리")
+    
+    risk_stats = f_df.groupby('주문경로').agg({
+        '주문번호': 'count',
+        '취소여부': lambda x: (x == 'Y').mean() * 100,
+        '실결제 금액': 'mean'
+    }).reset_index()
+    risk_stats.columns = ['채널', '총주문', '취소율(%)', '평균객단가']
+    
+    st.dataframe(risk_stats.style.highlight_max(subset=['취소율(%)'], color='#FFBD45').format({'취소율(%)': '{:.1f}%', '평균객단가': '{:,.0f}원'}), 
+                 use_container_width=True, hide_index=True)
+
+    st.info("""
+    **💡 ADMIN 액션 아이템**
+    - **급하락 품목 대응**: 매출이 급격히 빠지는 품목은 **품질 문제**가 발생했는지, 혹은 **경쟁사 특가**가 떴는지 즉시 모니터링이 필요합니다.
+    - **취소율 관리**: 특정 채널의 취소율이 평균 대비 높다면, 해당 채널의 **상품 안내 문구**나 **배송 기간 고지**에 혼선이 있는지 점검하세요.
+    - **가속도 활용**: 성장률이 높은 주차에는 광고 예산을 증액하여 **'매출 노 젓기'** 전략을 추천합니다.
+    """)
+
 with tab4:
     st.subheader("기타/크롬 경로 상세 분석 (표 5)")
     detail_paths = f_df[f_df['주문경로'].isin(['기타', '크롬'])]
