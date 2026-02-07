@@ -188,9 +188,18 @@ with tab3:
     # 2. 계층형 분석: 지역 > 경로 > 셀러 (Sunburst)
     st.subheader("2. 상위 지역별 유입 경로 및 셀러 계층 구조 (Top 5 지역)")
     top5_regions = reg_stats.nlargest(5, '총매출')['지역'].tolist()
-    hierarchy_df = f_df[f_df['광역지역(정식)'].isin(top5_regions)]
+    hierarchy_df = f_df[f_df['광역지역(정식)'].isin(top5_regions)].copy()
     
-    fig_sunburst = px.sunburst(hierarchy_df, path=['광역지역(정식)', '주문경로', '셀러명'], 
+    # 데이터 안정성 확보: 결측치 처리 및 사전 집계
+    path_cols = ['광역지역(정식)', '주문경로', '셀러명']
+    for col in path_cols:
+        hierarchy_df[col] = hierarchy_df[col].fillna(f"{col} 정보없음")
+    
+    # Plotly Sunburst 오류 방지를 위해 명시적 집계 수행
+    sunburst_df = hierarchy_df.groupby(path_cols)['실결제 금액'].sum().reset_index()
+    sunburst_df = sunburst_df[sunburst_df['실결제 금액'] > 0] # 0이하 값 제거
+    
+    fig_sunburst = px.sunburst(sunburst_df, path=path_cols, 
                                 values='실결제 금액', title="지역-경로-셀러 매출 비중 계층도",
                                 color='광역지역(정식)', color_discrete_sequence=px.colors.qualitative.Pastel)
     st.plotly_chart(fig_sunburst, use_container_width=True)
