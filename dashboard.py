@@ -377,16 +377,32 @@ with tab_funnel:
     고객이 첫 구매 이후 얼마나 다시 돌아오는지, 그리고 재방문 시 어떤 행동 변화를 보이는지 분석하여 **리텐션(Retention) 전략**을 제안합니다.
     """)
 
-    # 1. 구매 회차별 퍼널 (Retention Funnel)
-    st.write("#### 1️⃣ 구매 회차별 고객 전환 퍼널 (Retention Funnel)")
+    # 1. 구매 회차별 퍼널 (Retention Funnel Report)
+    st.write("#### 1️⃣ 구매 회차별 고객 전환 리포트 (Retention Funnel)")
+    
     # 각 회차별 유니크 고객 수 집계
     funnel_data = f_df.groupby('재구매_날짜순서')['주문자연락처'].nunique().reset_index()
-    funnel_data.columns = ['구매회차', '고객수']
-    funnel_data['구매회차_라벨'] = funnel_data['구매회차'].apply(lambda x: f"{int(x)+1}회차 구매")
+    funnel_data.columns = ['단계', '고객수']
     
-    fig_funnel = px.funnel(funnel_data, x='고객수', y='구매회차_라벨', 
-                           title="신규 유입부터 N차 재구매까지의 퍼널 현황")
-    st.plotly_chart(fig_funnel, use_container_width=True)
+    # 지표 계산: 잔존율(첫구매 대비), 전환율(전단계 대비)
+    first_purchase_count = funnel_data.iloc[0]['고객수']
+    funnel_data['잔존율(%)'] = (funnel_data['고객수'] / first_purchase_count * 100).round(1)
+    
+    # 전단계 대비 전환율 (pct_change와 유사하게 계산)
+    funnel_data['전단계 대비 전환율(%)'] = (funnel_data['고객수'] / funnel_data['고객수'].shift(1) * 100).fillna(100).round(1)
+    
+    # 라벨링
+    funnel_data['구매회차'] = funnel_data['단계'].apply(lambda x: f"{int(x)+1}회차 구매자")
+    
+    # 컬럼 순서 및 이름 정리
+    funnel_report = funnel_data[['구매회차', '고객수', '잔존율(%)', '전단계 대비 전환율(%)']]
+    
+    # 스타일링 및 출력
+    st.dataframe(funnel_report.style.background_gradient(subset=['잔존율(%)'], cmap='YlGnBu')
+                 .format({'고객수': '{:,}명', '잔존율(%)': '{:.1f}%', '전단계 대비 전환율(%)': '{:.1f}%'}),
+                 use_container_width=True, hide_index=True)
+    
+    st.caption("※ 잔존율(%)은 1회차 구매자(신규 유입) 대비 해당 회차까지 살아남은 고객의 비중입니다.")
 
     c_f1, c_f2 = st.columns(2)
     
