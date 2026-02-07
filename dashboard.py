@@ -128,7 +128,7 @@ tab_dash, tab1, tab2, tab_prod, tab_funnel, tab_time, tab_grade, tab3, tab4, tab
 # --- 탭 0: Dashboard (신규 메인) ---
 with tab_dash:
     st.title("Dashboard")
-    st.markdown("<p style='color: #666; font-size: 1.1rem; margin-top: -15px;'>Track your business performance at a glance</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666; font-size: 1.1rem; margin-top: -15px;'>비즈니스 성과를 한눈에 파악하세요</p>", unsafe_allow_html=True)
     
     # 데이터 준비: 주차별/일별 실적
     f_df['주차'] = pd.to_datetime(f_df['주문날짜']).dt.isocalendar().week
