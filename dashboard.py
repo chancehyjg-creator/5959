@@ -307,10 +307,11 @@ with tab_prod:
     """)
 
     # 상품페이지(상품명)별 통계 계산
+    # 셀러명에 NaN이 있을 경우 sorted()에서 에러가 발생하므로 dropna()와 문자열 변환 처리
     page_stats = f_df.groupby('상품명').agg({
         '실결제 금액': 'sum',
         '주문번호': 'count',
-        '셀러명': lambda x: sorted(list(set(x)))
+        '셀러명': lambda x: sorted(list(set(x.dropna().astype(str))))
     }).reset_index()
     
     # 페이지 유형 분류 (킹댕즈 참여 여부)
