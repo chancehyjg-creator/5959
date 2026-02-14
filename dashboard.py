@@ -965,24 +965,33 @@ with tab_growth:
                                  text="SNS 홍보 및 공구 오픈", showarrow=True, arrowhead=1)
         st.plotly_chart(fig_spike, use_container_width=True)
 
-        # 일자별 신규 vs. 재구매 주문 건수 상세 분석 table
-        st.write("**[상세 데이터] 일자별 유입 고객 성격 (신규 vs. 재구매)**")
-        kd_type_counts = kd_only.groupby(['주문날짜', '고객유형']).size().unstack(fill_value=0).reset_index()
+        # 일자별 고객 유형 및 구매 목적 상세 분석 table
+        st.write("**[상세 데이터] 일자별 유입 고객 성격 및 구매 목적 (신규/재구매 x 선물/소비)**")
         
-        # 컬럼 이름이 없을 경우 대비
-        if '신규 고객' not in kd_type_counts.columns: kd_type_counts['신규 고객'] = 0
-        if '재구매 고객' not in kd_type_counts.columns: kd_type_counts['재구매 고객'] = 0
+        # 그룹화: 주문날짜, 고객유형, 구매목적
+        kd_detail = kd_only.groupby(['주문날짜', '고객유형', '구매목적']).size().unstack(level=[1, 2], fill_value=0)
         
-        kd_type_counts['총 주문건수'] = kd_type_counts['신규 고객'] + kd_type_counts['재구매 고객']
-        kd_type_counts = kd_type_counts[['주문날짜', '신규 고객', '재구매 고객', '총 주문건수']].sort_values('주문날짜')
+        # 컬럼명 평탄화 및 정리
+        kd_detail.columns = [f"{col[0]}({col[1]})" for col in kd_detail.columns]
+        kd_detail = kd_detail.reset_index()
+        
+        # 필수 컬럼 보장 (데이터가 없을 경우 대비)
+        required_cols = ['신규 고객(선물용)', '신규 고객(자기소비용)', '재구매 고객(선물용)', '재구매 고객(자기소비용)']
+        for col in required_cols:
+            if col not in kd_detail.columns:
+                kd_detail[col] = 0
+        
+        kd_detail['총 주문건수'] = kd_detail[required_cols].sum(axis=1)
+        kd_detail = kd_detail[['주문날짜'] + required_cols + ['총 주문건수']].sort_values('주문날짜')
 
-        st.dataframe(kd_type_counts.style.background_gradient(subset=['재구매 고객'], cmap='OrRd'), 
+        st.dataframe(kd_detail.style.background_gradient(subset=['재구매 고객(선물용)', '재구매 고객(자기소비용)'], cmap='OrRd'), 
                      use_container_width=True, hide_index=True)
         
         st.info("""
         **💡 분석 결과 및 전략 포인트**
-        - **스파이크의 성격**: 첫 번째 거대 스파이크는 주로 '신규 고객'이 견인하며, 이후 발생하는 작은 반등 지점에서 **'재구매 고객'의 비중**이 높아지는지 확인해야 합니다.
-        - **재구매 주기(15일) 대응**: 신선식품 특성상 약 15~20일 주기로 발생하는 재구매 수요를 잡기 위해, 1차 공구 종료 2주 후 **'리마인드 공구'** 또는 **'재구매 전용 쿠폰'** 푸시 전략이 유효합니다.
+        - **선물용 바이럴의 위력**: 9/28과 같은 대형 스파이크 시점에는 **신규/재구매와 상관없이 '선물용' 주문이 압도적**으로 나타납니다. 이는 인플루언서의 추천 상품이 팬들에게 신뢰받는 선물 아이템으로 각인되어 있음을 의미합니다.
+        - **대기 매수세 확인**: 신규뿐만 아니라 기존 고객(재구매) 역시 공구 시작일에 맞춰 대거 '선물용'으로 구매를 진행하는 **대기 매수세**가 확인됩니다.
+        - **재구매 주기 대응**: 신선식품 특성상 약 15~20일 주기로 발생하는 재구매 수요를 위해, 1차 공구 종료 2주 후 **'선물용 추가 공구'** 또는 **'자기소비용 대용량 특가'** 푸시 전략이 유효합니다.
         """)
     else:
         st.error("킹댕즈 데이터가 선택된 필터에 포함되어 있지 않습니다.")
