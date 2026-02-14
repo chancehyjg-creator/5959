@@ -893,9 +893,9 @@ with tab_growth:
     - **품목별 객단가**: 동일 품종 내 그룹별 평균 객단가(AOV) 비교를 통한 브랜드 파워 측정.
     """)
 
-    # [신규 추가] 그룹별 기초 체력 비교 (요약 표)
+    # [신규 추가] 셀러 그룹별 현황 (요약 표)
     st.markdown("---")
-    st.markdown("### 📊 그룹별 기초 체력(Scale) 비교")
+    st.markdown("### 📊 셀러 그룹별 현황")
     st.write("상세 분석에 앞서, 인플루언서 1인과 일반 셀러 집단의 규모 차이를 한눈에 확인합니다.")
 
     # 지표 계산
@@ -905,6 +905,7 @@ with tab_growth:
         '셀러명': 'nunique'
     }).reset_index()
     
+    summary_stats['그룹'] = summary_stats['그룹'].replace('킹댕즈', '인플루언서(킹댕즈)')
     summary_stats.columns = ['그룹', '총 매출액', '총 주문건수', '참여 셀러 수']
     
     # 가독성을 위한 포맷팅
@@ -916,10 +917,32 @@ with tab_growth:
     # 테이블 출력
     st.table(summary_formatted)
     
+    # [시각화 추가] 파레토의 법칙 시각화
+    col_vis1, col_vis2 = st.columns(2)
+    
+    with col_vis1:
+        # 1. 매출 비중 (Donut Chart)
+        fig_rev_share = px.pie(summary_stats, values='총 매출액', names='그룹', hole=0.5,
+                                title="전체 매출액 비중 (%)",
+                                color_discrete_map={'인플루언서(킹댕즈)': '#FF4B4B', '일반 셀러': '#1C83E1'})
+        fig_rev_share.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig_rev_share, use_container_width=True)
+        
+    with col_vis2:
+        # 2. 인당 생산성 비교 (Bar Chart)
+        summary_stats['셀러 1인당 평균 매출'] = summary_stats['총 매출액'] / summary_stats['참여 셀러 수']
+        fig_prod_comp = px.bar(summary_stats, x='그룹', y='셀러 1인당 평균 매출',
+                                title="셀러 1인당 평균 매출 (생산성)",
+                                text_auto=',.0f',
+                                color='그룹', color_discrete_map={'인플루언서(킹댕즈)': '#FF4B4B', '일반 셀러': '#1C83E1'})
+        fig_prod_comp.update_layout(yaxis_title="평균 매출액 (원)", showlegend=False)
+        st.plotly_chart(fig_prod_comp, use_container_width=True)
+
     st.info(f"""
-    **💡 규모의 경제 분석**
-    - **인플루언서(킹댕즈)**: 단 **{summary_stats[summary_stats['그룹']=='킹댕즈']['참여 셀러 수'].values[0]}명**의 셀러가 전체 매출의 상당 부분을 견인하는 폭발적인 생산성을 보여줍니다.
-    - **일반 셀러**: 총 **{summary_stats[summary_stats['그룹']=='일반 셀러']['참여 셀러 수'].values[0]}명**의 셀러가 활동하며 리스크를 분산하고 플랫폼의 하단 매출을 지탱하는 '안정성'의 기반이 됩니다.
+    **💡 파레토의 법칙(80/20) 및 데이터 시사점**
+    - **매출 집중도**: 단 **1명의 인플루언서(킹댕즈)**가 전체 매출의 약 **{ (summary_stats[summary_stats['그룹']=='인플루언서(킹댕즈)']['총 매출액'].values[0] / summary_stats['총 매출액'].sum() * 100).round(1) }%**를 차지하고 있습니다. 이는 '상위 20%가 80%의 결과를 만든다'는 파레토의 법칙을 뛰어넘는 극단적인 매출 집중도를 보여줍니다.
+    - **압도적 생산성 차이**: 오른쪽 차트를 보면 인플루언서(킹댕즈) 1인의 생산성은 일반 셀러 평균 대비 **약 { (summary_stats[summary_stats['그룹']=='인플루언서(킹댕즈)']['셀러 1인당 평균 매출'].values[0] / summary_stats[summary_stats['그룹']=='일반 셀러']['셀러 1인당 평균 매출'].values[0]).round(0) }배**에 달합니다. 
+    - **핵심 전략**: 쇼핑몰의 빠른 성장을 위해서는 이런 '슈퍼 셀러'를 추가로 발굴하는 것이 가장 효율적이며, 동시에 수백 명의 일반 셀러가 만드는 안정적인 '롱테일(Long-tail) 매출'을 조화시키는 것이 플랫폼 체력의 핵심입니다.
     """)
 
     st.markdown("---")
