@@ -907,14 +907,32 @@ with tab_growth:
     - **킹댕즈**: 특정 SNS 채널을 통한 유입이 절대적이며, 해당 채널의 전파 속도가 성장을 결정함.
     """)
 
-    # 6-2. 신규 고객 유치 기여도
-    st.subheader("📊 6-2. 고객 유형별 기여도 분석")
-    cust_type = f_df.groupby(['그룹', '고객유형']).size().reset_index(name='주문건수')
-    fig_cust_type = px.bar(cust_type, x='그룹', y='주문건수', color='고객유형', barmode='group',
-                            title="그룹별 신규 고객 유치 능력 비교",
-                            color_discrete_map={'신규 고객': '#00C897', '재구매 고객': '#008AF3'})
-    st.plotly_chart(fig_cust_type, use_container_width=True)
-    st.warning("**전략 결론**: 플랫폼 확장을 위해서는 신규 고객 유입 비중이 압도적으로 높은 '킹댕즈 스타일'의 셀러 영입이 가속화되어야 함.")
+    # 6-2. 신규 고객 유치 기여도 (도넛 그래프)
+    st.subheader("📊 6-2. 고객 유형별 기여도 분석 (신규 vs. 재구매)")
+    
+    col_c1, col_c2 = st.columns(2)
+    
+    with col_c1:
+        # 일반 셀러 신규/재구매 비중
+        gen_cust = f_df[f_df['그룹'] == '일반 셀러']['고객유형'].value_counts().reset_index()
+        gen_cust.columns = ['고객유형', '건수']
+        fig_gen_pie = px.pie(gen_cust, values='건수', names='고객유형', hole=0.5,
+                              title="일반 셀러: 고객 구성 비율",
+                              color_discrete_map={'신규 고객': '#A5D6A7', '재구매 고객': '#1B5E20'})
+        fig_gen_pie.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig_gen_pie, use_container_width=True)
+        
+    with col_c2:
+        # 킹댕즈 신규/재구매 비중
+        kd_cust = f_df[f_df['그룹'] == '킹댕즈']['고객유형'].value_counts().reset_index()
+        kd_cust.columns = ['고객유형', '건수']
+        fig_kd_pie = px.pie(kd_cust, values='건수', names='고객유형', hole=0.5,
+                             title="킹댕즈: 고객 구성 비율",
+                             color_discrete_map={'신규 고객': '#FFCDD2', '재구매 고객': '#B71C1C'})
+        fig_kd_pie.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig_kd_pie, use_container_width=True)
+        
+    st.warning("**전략 결론**: 도넛 그래프 분석 결과, **킹댕즈**는 외부에서 새로운 고객을 수혈하는 '확장 엔진' 역할을 수행하며, **일반 셀러**는 기존 유입된 고객의 충성도를 유지하는 '안정성' 중심의 구조임이 확인됨.")
 
     # 6-3. 킹댕즈 매출 스파이크 패턴
     st.subheader("📊 6-3. 인플루언서 매출 폭발 패턴 (Time-series)")
