@@ -856,15 +856,17 @@ with tab_growth:
     st.write("**[상세 데이터] 유입 경로별 비중 (%)**")
     st.dataframe(channel_pivot.style.format("{:.1f}%").background_gradient(axis=0, cmap='YlGnBu'), use_container_width=True)
     
-    # 가로형 막대그래프 (레이블을 %로 표시)
+    # 가로형 막대그래프 (주문경로와 % 모두 표시)
+    channel_comp['레이블'] = channel_comp['주문경로'] + ": " + channel_comp['비중(%)'].astype(str) + "%"
+    
     fig_chan_comp = px.bar(channel_comp, y='그룹', x='주문건수', color='주문경로',
                             title="일반 셀러 vs 킹댕즈: 유입 경로 비중 분석 (%)",
                             orientation='h',
-                            text='비중(%)')
+                            text='레이블')
     
-    # 레이블 포맷 설정 (% 추가)
-    fig_chan_comp.update_traces(texttemplate='%{text}%', textposition='inside')
-    fig_chan_comp.update_layout(barnorm='percent', xaxis_title="유입 비중 (%)", yaxis_title="셀러 그룹")
+    # 레이블 위치 및 포맷 설정
+    fig_chan_comp.update_traces(textposition='inside')
+    fig_chan_comp.update_layout(barnorm='percent', xaxis_title="유입 비중 (%)", yaxis_title="셀러 그룹", showlegend=False)
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
     st.info("""
