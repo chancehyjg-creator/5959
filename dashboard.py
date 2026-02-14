@@ -929,14 +929,33 @@ with tab_growth:
         st.plotly_chart(fig_rev_share, use_container_width=True)
         
     with col_vis2:
-        # 2. 인당 생산성 비교 (Bar Chart)
+        # 2. 생산성 vs 규모 (Bubble Chart) - 파레토 법칙 시각화
         summary_stats['셀러 1인당 평균 매출'] = summary_stats['총 매출액'] / summary_stats['참여 셀러 수']
-        fig_prod_comp = px.bar(summary_stats, x='그룹', y='셀러 1인당 평균 매출',
-                                title="셀러 1인당 평균 매출 (생산성)",
-                                text_auto=',.0f',
-                                color='그룹', color_discrete_map={'인플루언서(킹댕즈)': '#FF4B4B', '일반 셀러': '#1C83E1'})
-        fig_prod_comp.update_layout(yaxis_title="평균 매출액 (원)", showlegend=False)
-        st.plotly_chart(fig_prod_comp, use_container_width=True)
+        
+        # 가독성을 위한 배수 계산
+        ratio = (summary_stats[summary_stats['그룹'] == '인플루언서(킹댕즈)']['셀러 1인당 평균 매출'].values[0] / 
+                 summary_stats[summary_stats['그룹'] == '일반 셀러']['셀러 1인당 평균 매출'].values[0])
+        
+        fig_bubble = px.scatter(summary_stats, x='참여 셀러 수', y='셀러 1인당 평균 매출',
+                                size='총 매출액', color='그룹',
+                                title="셀러별 생산성(Efficiency) vs. 규모(Scale)",
+                                labels={'참여 셀러 수': '활동 셀러 수 (명)', '셀러 1인당 평균 매출': '1인당 평균 매출 (원)'},
+                                color_discrete_map={'인플루언서(킹댕즈)': '#FF4B4B', '일반 셀러': '#1C83E1'},
+                                size_max=60, text='그룹')
+        
+        fig_bubble.update_traces(textposition='top center')
+        
+        # 수치 비교 주석 추가
+        fig_bubble.add_annotation(
+            x=summary_stats[summary_stats['그룹'] == '인플루언서(킹댕즈)']['참여 셀러 수'].values[0],
+            y=summary_stats[summary_stats['그룹'] == '인플루언서(킹댕즈)']['셀러 1인당 평균 매출'].values[0],
+            text=f"일반 셀러 대비<br><b>{ratio:.1f}배</b> 생산성",
+            showarrow=True, arrowhead=2, ax=70, ay=0,
+            bgcolor="rgba(255, 255, 255, 0.8)", bordercolor="#FF4B4B"
+        )
+        
+        fig_bubble.update_layout(height=450)
+        st.plotly_chart(fig_bubble, use_container_width=True)
 
     st.info(f"""
     **💡 파레토의 법칙(80/20) 및 데이터 시사점**
