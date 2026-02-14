@@ -897,12 +897,16 @@ with tab_growth:
     group_totals = channel_comp.groupby('그룹')['주문건수'].transform('sum')
     channel_comp['비중(%)'] = (channel_comp['주문건수'] / group_totals * 100).round(1)
     
-    channel_pivot = channel_comp.pivot(index='주문경로', columns='그룹', values='비중(%)').fillna(0)
+    # 1% 미만 유입경로는 '기타'로 묶어 분석의 효율성 제고
+    channel_comp['주문경로_집계'] = channel_comp.apply(lambda x: x['주문경로'] if x['비중(%)'] >= 1.0 else '기타', axis=1)
+    channel_final = channel_comp.groupby(['그룹', '주문경로_집계']).agg({'주문건수': 'sum', '비중(%)': 'sum'}).reset_index()
+    
+    channel_pivot = channel_final.pivot(index='주문경로_집계', columns='그룹', values='비중(%)').fillna(0)
     st.write("**[상세 데이터] 유입 경로별 비중 (%)**")
     st.dataframe(channel_pivot.style.format("{:.1f}%").background_gradient(axis=0, cmap='YlGnBu'), use_container_width=True)
     
-    channel_comp['레이블'] = channel_comp['주문경로'] + ": " + channel_comp['비중(%)'].astype(str) + "%"
-    fig_chan_comp = px.bar(channel_comp, y='그룹', x='주문건수', color='주문경로',
+    channel_final['레이블'] = channel_final['주문경로_집계'] + ": " + channel_final['비중(%)'].round(1).astype(str) + "%"
+    fig_chan_comp = px.bar(channel_final, y='그룹', x='주문건수', color='주문경로_집계',
                             title="일반 셀러 vs 킹댕즈: 유입 경로 비중 분석 (%)",
                             orientation='h', text='레이블')
     fig_chan_comp.update_traces(textposition='inside')
@@ -911,8 +915,8 @@ with tab_growth:
     
     st.info("""
     **💡 데이터 분석 포인트**
-    - **일반 셀러**: 특정 채널에 의존하기보다 다양한 경로를 통해 유입이 분산되어 있어 운영적 안정성이 높음.
-    - **킹댕즈**: 특정 SNS 채널을 통한 유입이 절대적이며, 해당 채널의 전파 속도가 성장을 결정함.
+    - **일반 셀러**: **카카오톡**을 통한 유입 비중이 높게 나타납니다. 이는 지인 영업 및 기존 단골 고객과의 소통 채널이 주된 매출 창구임을 의미합니다.
+    - **킹댕즈**: 인스타그램 인플루언서인 만큼 **인스타그램(SNS) 유입**이 매출의 핵심입니다. 콘텐츠 파급력에 따라 외부 신규 유입이 단기간에 집중되는 구조입니다.
     """)
 
     # 6-2. 신규 고객 유치 기여도 (도넛 그래프)
@@ -974,26 +978,14 @@ with tab_growth:
     # 데이터 정제: 이미 정제된 f_df_growth를 기반으로 분포 시각화를 위해 100만원 이하로 제한
     aov_df_dist = f_df_growth[f_df_growth['실결제 금액'] <= 1000000].copy() 
 
-    col_aov1, col_aov2 = st.columns([1, 1])
-    
-    with col_aov1:
-        # 그룹별 평균 객단가 (AOV) 바 차트
-        group_aov = f_df_growth.groupby('그룹')['실결제 금액'].mean().reset_index()
-        fig_aov_bar = px.bar(group_aov, x='그룹', y='실결제 금액', 
-                              title="그룹별 평균 객단가(AOV) 비교",
-                              text_auto=',.0f',
-                              color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'})
-        fig_aov_bar.update_layout(yaxis_title="평균 결제 금액 (원)")
-        st.plotly_chart(fig_aov_bar, use_container_width=True)
-        
-    with col_aov2:
-        # 결제 금액 분포 (Box Plot)
-        fig_aov_dist = px.box(aov_cust_dist := aov_df_dist, x='그룹', y='실결제 금액', 
-                               title="그룹별 주문당 결제 금액 분포",
-                               color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'},
-                               points=False)
-        fig_aov_dist.update_layout(yaxis_title="결제 금액 (원)")
-        st.plotly_chart(fig_aov_dist, use_container_width=True)
+    # 그룹별 평균 객단가 (AOV) 바 차트 단독 표시
+    group_aov = f_df_growth.groupby('그룹')['실결제 금액'].mean().reset_index()
+    fig_aov_bar = px.bar(group_aov, x='그룹', y='실결제 금액', 
+                          title="그룹별 평균 객단가(AOV) 비교",
+                          text_auto=',.0f',
+                          color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'})
+    fig_aov_bar.update_layout(yaxis_title="평균 결제 금액 (원)")
+    st.plotly_chart(fig_aov_bar, use_container_width=True)
 
     st.success("""
     **💡 분석 결과 및 전략적 시사점**
