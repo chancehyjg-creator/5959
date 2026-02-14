@@ -846,17 +846,24 @@ with tab_growth:
     # 1. 일반 셀러 vs 킹댕즈: 유입 경로 비교
     st.subheader("1️⃣ 일반 셀러 vs 킹댕즈: 상세 유입 경로 비교")
     
-    # 데이터 집계 및 표 표시
+    # 데이터 집계 및 비중 계산
     channel_comp = f_df.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
-    channel_pivot = channel_comp.pivot(index='주문경로', columns='그룹', values='주문건수').fillna(0).astype(int)
-    st.write("**[상세 데이터] 유입 경로별 주문 건수**")
-    st.dataframe(channel_pivot.style.background_gradient(axis=0, cmap='Pastel1'), use_container_width=True)
+    group_totals = channel_comp.groupby('그룹')['주문건수'].transform('sum')
+    channel_comp['비중(%)'] = (channel_comp['주문건수'] / group_totals * 100).round(1)
     
-    # 가로형 막대그래프 (비중 %)
+    # 표 표시 (비중 중심)
+    channel_pivot = channel_comp.pivot(index='주문경로', columns='그룹', values='비중(%)').fillna(0)
+    st.write("**[상세 데이터] 유입 경로별 비중 (%)**")
+    st.dataframe(channel_pivot.style.format("{:.1f}%").background_gradient(axis=0, cmap='YlGnBu'), use_container_width=True)
+    
+    # 가로형 막대그래프 (레이블을 %로 표시)
     fig_chan_comp = px.bar(channel_comp, y='그룹', x='주문건수', color='주문경로',
                             title="일반 셀러 vs 킹댕즈: 유입 경로 비중 분석 (%)",
                             orientation='h',
-                            text_auto='.1f')
+                            text='비중(%)')
+    
+    # 레이블 포맷 설정 (% 추가)
+    fig_chan_comp.update_traces(texttemplate='%{text}%', textposition='inside')
     fig_chan_comp.update_layout(barnorm='percent', xaxis_title="유입 비중 (%)", yaxis_title="셀러 그룹")
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
