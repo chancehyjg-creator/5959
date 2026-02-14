@@ -846,17 +846,31 @@ with tab_growth:
     # 1. 일반 셀러 vs 킹댕즈: 유입 경로 비교
     st.subheader("1️⃣ 일반 셀러 vs 킹댕즈: 상세 유입 경로 비교")
     
+    # 데이터 집계 및 표 표시
     channel_comp = f_df.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
-    fig_chan_comp = px.bar(channel_comp, x='그룹', y='주문건수', color='주문경로',
-                            title="일반 셀러 vs 킹댕즈: 원본 유입 경로 비중 비교 (%)",
+    channel_pivot = channel_comp.pivot(index='주문경로', columns='그룹', values='주문건수').fillna(0).astype(int)
+    st.write("**[상세 데이터] 유입 경로별 주문 건수**")
+    st.dataframe(channel_pivot.style.background_gradient(axis=0, cmap='Pastel1'), use_container_width=True)
+    
+    # 가로형 막대그래프 (비중 %)
+    fig_chan_comp = px.bar(channel_comp, y='그룹', x='주문건수', color='주문경로',
+                            title="일반 셀러 vs 킹댕즈: 유입 경로 비중 분석 (%)",
+                            orientation='h',
                             text_auto='.1f')
-    fig_chan_comp.update_layout(barnorm='percent')
+    fig_chan_comp.update_layout(barnorm='percent', xaxis_title="유입 비중 (%)", yaxis_title="셀러 그룹")
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
     st.info("""
     **💡 데이터 분석 결과**
     - **일반 셀러**: 특정 채널에 의존하기보다 다양한 경로를 통해 유입이 분산되어 있으며, 채널별 비중이 고르게 분포하고 있습니다.
     - **킹댕즈**: 특정 SNS 채널을 통한 유입이 매우 강력하며, 해당 채널의 전파 속도에 따라 매출 스파이크가 결정되는 구조입니다.
+    """)
+    
+    st.success("""
+    **🚀 성장 전략 인사이트**
+    1. **안정성 기반의 스케일업 (일반 셀러)**: 분산된 채널 점유율은 사업의 리스크가 낮음을 의미합니다. 이 중 전환율이 우수한 채널을 선별하여 본사 차원의 '공동 광고'를 집행함으로써 유입의 절대 규모를 키워야 합니다.
+    2. **전파 속도 최적화 (인플루언서)**: 킹댕즈와 같은 인플루언서 판매 시에는 해당 SNS 채널의 알고리즘 피크 시간에 맞춰 상품을 오픈하고, '24시간 타임 세일'과 같은 긴박감을 더해 전파 속도를 매출로 즉각 전환시켜야 합니다.
+    3. **제주 브랜딩의 전이**: 인플루언서가 '강아지 셀럽'이라는 본업 외에 '제주 프리미엄 큐레이터'로서의 정체성을 가질 수 있도록 제주 과수원 테마의 전용 랜딩 페이지를 지원하여 팬들의 구매 명분을 강화해야 합니다.
     """)
 
     st.markdown("---")
