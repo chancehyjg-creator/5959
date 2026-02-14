@@ -954,20 +954,40 @@ with tab_growth:
         st.plotly_chart(fig_spike, use_container_width=True)
         st.info("인플루언서 판매는 홍보 직후 단기간에 매출이 집중되므로, 이를 체계적으로 반복할 수 있는 '공구 캘린더' 확보가 필수적임.")
 
-    # 6-4. 영입 타겟용 상품 조건
-    st.subheader("📊 6-4. 인플루언서 적합 상품 분석")
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        aov_comp = f_df.groupby('그룹')['실결제 금액'].mean().reset_index()
-        fig_aov_comp = px.bar(aov_comp, x='그룹', y='실결제 금액', title="그룹별 객단가(AOV) 비교",
-                               color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'})
-        st.plotly_chart(fig_aov_comp, use_container_width=True)
-    with col_p2:
-        grade_comp = f_df.groupby(['그룹', '상품성등급_그룹']).size().reset_index(name='건수')
-        fig_grade_comp = px.bar(grade_comp, x='그룹', y='건수', color='상품성등급_그룹', barmode='relative',
-                                 title="판매 상품 프리미엄 비중",
-                                 color_discrete_map={'프리미엄': '#FFD700', '일반': '#C0C0C0'})
-        st.plotly_chart(fig_grade_comp, use_container_width=True)
+    # 6-4. 영입 타겟용 상품 조건 (객단가 집중 분석)
+    st.subheader("📊 6-4. 인플루언서 적합 상품 분석 (객단가 중심)")
+    
+    st.markdown("""
+    인플루언서 영입 정당성을 확보하기 위해 가장 중요한 지표는 **객단가(AOV)**입니다. 
+    단순히 많이 파는 것을 넘어, '얼마나 비싼 상품을 잘 파는가'가 인플루언서의 가치를 증명합니다.
+    """)
+
+    col_aov1, col_aov2 = st.columns([1, 1])
+    
+    with col_aov1:
+        # 그룹별 평균 객단가 (AOV) 바 차트
+        group_aov = f_df.groupby('그룹')['실결제 금액'].mean().reset_index()
+        fig_aov_bar = px.bar(group_aov, x='그룹', y='실결제 금액', 
+                              title="그룹별 평균 객단가(AOV) 비교",
+                              text_auto=',.0f',
+                              color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'})
+        fig_aov_bar.update_layout(yaxis_title="평균 결제 금액 (원)")
+        st.plotly_chart(fig_aov_bar, use_container_width=True)
+        
+    with col_aov2:
+        # 결제 금액 분포 (Box Plot) - 이상치 제거 혹은 전체 분포 확인
+        fig_aov_dist = px.box(f_df, x='그룹', y='실결제 금액', 
+                               title="그룹별 주문당 결제 금액 분포",
+                               color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'},
+                               points=False) # 점이 너무 많으면 느려지므로 제외
+        fig_aov_dist.update_layout(yaxis_title="결제 금액 (원)")
+        st.plotly_chart(fig_aov_dist, use_container_width=True)
+
+    st.success("""
+    **💡 분석 결과 및 전략적 시사점**
+    - **고단가 소화력**: 킹댕즈와 같은 인플루언서는 일반 셀러 대비 **상대적으로 높은 평균 객단가**를 형성하고 있습니다. 이는 인플루언서의 팬덤이 상품의 가격보다는 '추천'과 '신뢰'에 기반하여 고가 라인업을 기꺼이 구매함을 의미합니다.
+    - **영입 전략**: 따라서 신규 인플루언서 영입 시, 저가형 미끼 상품보다는 **'제주 한정판 프리미엄 세트'**와 같은 고단가 기획 상품을 전면에 내세우는 것이 매출 극대화와 인플루언서의 수익성(수수료) 확보 양면에서 유리합니다.
+    """)
 
     st.markdown("---")
     
