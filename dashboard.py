@@ -890,7 +890,36 @@ with tab_growth:
     - **채널 기여도**: 주문 데이터에서 추출한 원본 `주문경로`를 셀러 그룹별로 비중 분석.
     - **고객 획득**: 신규 고객 vs. 재구매 고객의 비중을 통해 셀러의 '새 피 수혈' 능력 측정.
     - **매출 패턴**: 시계열 데이터를 활용한 매출 스파이크 지점 및 지속 기간 분석.
-    - **상품 적합도**: 각 그룹별 평균 객단가(AOV) 및 프리미엄 상품 판매 비중 교차 분석.
+    - **품목별 객단가**: 동일 품종 내 그룹별 평균 객단가(AOV) 비교를 통한 브랜드 파워 측정.
+    """)
+
+    # [신규 추가] 그룹별 기초 체력 비교 (요약 표)
+    st.markdown("---")
+    st.markdown("### 📊 그룹별 기초 체력(Scale) 비교")
+    st.write("상세 분석에 앞서, 인플루언서 1인과 일반 셀러 집단의 규모 차이를 한눈에 확인합니다.")
+
+    # 지표 계산
+    summary_stats = f_df_growth.groupby('그룹').agg({
+        '실결제 금액': 'sum',
+        '주문번호': 'count',
+        '셀러명': 'nunique'
+    }).reset_index()
+    
+    summary_stats.columns = ['그룹', '총 매출액', '총 주문건수', '참여 셀러 수']
+    
+    # 가독성을 위한 포맷팅
+    summary_formatted = summary_stats.copy()
+    summary_formatted['총 매출액'] = summary_formatted['총 매출액'].apply(lambda x: f"₩{x:,.0f}")
+    summary_formatted['총 주문건수'] = summary_formatted['총 주문건수'].apply(lambda x: f"{x:,.0f}건")
+    summary_formatted['참여 셀러 수'] = summary_formatted['참여 셀러 수'].apply(lambda x: f"{x:,.0f}명")
+
+    # 테이블 출력
+    st.table(summary_formatted)
+    
+    st.info(f"""
+    **💡 규모의 경제 분석**
+    - **인플루언서(킹댕즈)**: 단 **{summary_stats[summary_stats['그룹']=='킹댕즈']['참여 셀러 수'].values[0]}명**의 셀러가 전체 매출의 상당 부분을 견인하는 폭발적인 생산성을 보여줍니다.
+    - **일반 셀러**: 총 **{summary_stats[summary_stats['그룹']=='일반 셀러']['참여 셀러 수'].values[0]}명**의 셀러가 활동하며 리스크를 분산하고 플랫폼의 하단 매출을 지탱하는 '안정성'의 기반이 됩니다.
     """)
 
     st.markdown("---")
