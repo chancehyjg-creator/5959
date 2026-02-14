@@ -59,7 +59,7 @@ def load_and_process_data():
         if any(keyword in size for keyword in ['선물', '명품', '로얄', '특']) or (price >= 35000):
             return '선물용'
         else:
-            return '개인소비용'
+            return '자기소비용'
     
     df['구매목적'] = df.apply(classify_purpose, axis=1)
     
@@ -340,7 +340,7 @@ with tab2:
 
     st.markdown("---")
     # --- [개편] 감귤 구매 목적별 옵션 클러스터링 ---
-    st.subheader("🍊 감귤 구매 목적별 선호 옵션 비교 (선물 vs 개인소비)")
+    st.subheader("🍊 감귤 구매 목적별 선호 옵션 비교 (선물 vs 자기소비)")
     st.markdown("고객의 구매 목적에 따라 선호하는 과일의 크기, 무게, 가격대가 극명하게 갈립니다. 이를 통해 타겟별 맞춤 전략을 제안합니다.")
     
     citrus_df = f_df[f_df['품종'] == '감귤'].copy()
@@ -353,7 +353,7 @@ with tab2:
             size_purpose = citrus_df.groupby(['구매목적', '과수 크기']).size().reset_index(name='주문건수')
             fig_size_p = px.bar(size_purpose, x='과수 크기', y='주문건수', color='구매목적', barmode='group',
                                 title="구매 목적에 따른 감귤 크기(Size) 선호도",
-                                color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'})
+                                color_discrete_map={'선물용': '#EF553B', '자기소비용': '#636EFA'})
             st.plotly_chart(fig_size_p, use_container_width=True)
             
         else:
@@ -366,7 +366,7 @@ with tab2:
                 weight_p = citrus_df.groupby(['구매목적', '무게 구분']).size().reset_index(name='주문건수')
                 fig_weight_p = px.bar(weight_p, x='무게 구분', y='주문건수', color='구매목적', barmode='group',
                                       title="구매 목적별 선호 무게(kg) 비교",
-                                      color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'},
+                                      color_discrete_map={'선물용': '#EF553B', '자기소비용': '#636EFA'},
                                       text_auto=True)
                 st.plotly_chart(fig_weight_p, use_container_width=True)
                 
@@ -376,7 +376,7 @@ with tab2:
                 # 가격대 정렬 (가능한 경우)
                 fig_price_p = px.bar(price_p, x='가격대', y='주문건수', color='구매목적', barmode='group',
                                      title="구매 목적별 선호 가격대 비교",
-                                     color_discrete_map={'선물용': '#EF553B', '개인소비용': '#636EFA'},
+                                     color_discrete_map={'선물용': '#EF553B', '자기소비용': '#636EFA'},
                                      text_auto=True)
                 st.plotly_chart(fig_price_p, use_container_width=True)
 
@@ -393,7 +393,7 @@ with tab2:
         st.info("""
         **💡 목적별 마케팅 포인트**
         - **선물용**: 가격 저항선이 낮으므로 **'프리미엄 로얄과'**와 **'고급 포장'**을 강조한 고단가 세트 구성에 집중하세요.
-        - **개인소비용**: 가성비가 최우선입니다. **'못난이/가정용'** 키워드와 함께 **10kg 대용량** 벌크 상품의 가격 경쟁력을 확보하는 것이 유리합니다.
+        - **자기소비용**: 가성비가 최우선입니다. **'못난이/가정용'** 키워드와 함께 **10kg 대용량** 벌크 상품의 가격 경쟁력을 확보하는 것이 유리합니다.
         """)
     else:
         st.warning("데이터 내 '감귤' 품종에 대한 상세 정보가 부족합니다.")
