@@ -835,10 +835,18 @@ with tab4:
     fig7 = px.bar(mem_dist, x='주문경로', y='건수', color='회원구분', barmode='group')
     st.plotly_chart(fig7, use_container_width=True)
 
-# --- 탭: 셀러 성장 전략 (신규) ---
 # --- 탭: 셀러 성장 전략 (보고서 형식) ---
 with tab_growth:
     st.header("📋 셀러 성장 및 인플루언서 영입 전략 보고서")
+    
+    # [데이터 클리닝] 분석의 정확도를 위해 결측치 및 0원 데이터 원천 차단
+    f_df_growth = f_df.copy()
+    # 1. 가격 데이터가 없거나 0원인 경우 제외
+    f_df_growth = f_df_growth[f_df_growth['실결제 금액'] > 0]
+    # 2. 주요 분석 컬럼에 결측치가 있는 행 제거
+    f_df_growth = f_df_growth.dropna(subset=['실결제 금액', '그룹', '주문경로', '주문날짜', '고객유형'])
+    # 3. 빈 문자열("") 처리
+    f_df_growth = f_df_growth[f_df_growth['주문경로'].astype(str).str.strip() != ""]
     
     # 1. 목적
     st.markdown("### 1. 목적")
@@ -885,7 +893,7 @@ with tab_growth:
 
     # 6-1. 유입 경로 비교
     st.subheader("📊 6-1. 상세 유입 경로 분석 (안정성 vs. 확장성)")
-    channel_comp = f_df.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
+    channel_comp = f_df_growth.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
     group_totals = channel_comp.groupby('그룹')['주문건수'].transform('sum')
     channel_comp['비중(%)'] = (channel_comp['주문건수'] / group_totals * 100).round(1)
     
@@ -920,7 +928,7 @@ with tab_growth:
     
     with col_c1:
         # 일반 셀러 신규/재구매 비중
-        gen_cust = f_df[f_df['그룹'] == '일반 셀러']['고객유형'].value_counts().reset_index()
+        gen_cust = f_df_growth[f_df_growth['그룹'] == '일반 셀러']['고객유형'].value_counts().reset_index()
         gen_cust.columns = ['고객유형', '건수']
         fig_gen_pie = px.pie(gen_cust, values='건수', names='고객유형', hole=0.5,
                               title="일반 셀러: 고객 구성 비율",
@@ -930,7 +938,7 @@ with tab_growth:
         
     with col_c2:
         # 킹댕즈 신규/재구매 비중
-        kd_cust = f_df[f_df['그룹'] == '킹댕즈']['고객유형'].value_counts().reset_index()
+        kd_cust = f_df_growth[f_df_growth['그룹'] == '킹댕즈']['고객유형'].value_counts().reset_index()
         kd_cust.columns = ['고객유형', '건수']
         fig_kd_pie = px.pie(kd_cust, values='건수', names='고객유형', hole=0.5,
                              title="킹댕즈: 고객 구성 비율",
@@ -942,7 +950,7 @@ with tab_growth:
 
     # 6-3. 킹댕즈 매출 스파이크 패턴
     st.subheader("📊 6-3. 인플루언서 매출 폭발 패턴 (Time-series)")
-    kd_only = f_df[f_df['그룹'] == '킹댕즈'].copy()
+    kd_only = f_df_growth[f_df_growth['그룹'] == '킹댕즈'].copy()
     if not kd_only.empty:
         kd_daily = kd_only.groupby('주문날짜')['실결제 금액'].sum().reset_index()
         fig_spike = px.line(kd_daily, x='주문날짜', y='실결제 금액', markers=True,
@@ -954,7 +962,7 @@ with tab_growth:
         st.plotly_chart(fig_spike, use_container_width=True)
         st.info("인플루언서 판매는 홍보 직후 단기간에 매출이 집중되므로, 이를 체계적으로 반복할 수 있는 '공구 캘린더' 확보가 필수적임.")
 
-    # 6-4. 영입 타겟용 상품 조건 (객단가 집중 분석)
+    # 영입 타겟용 상품 조건 (객단가 집중 분석)
     st.subheader("📊 6-4. 인플루언서 적합 상품 분석 (객단가 중심)")
     
     st.markdown("""
@@ -963,15 +971,14 @@ with tab_growth:
     *(※ 분석의 정확도를 위해 결제 금액이 0원인 데이터 및 이상치(100만원 초과)는 제외되었습니다.)*
     """)
 
-    # 데이터 정제: 0원 데이터 및 극단적 이상치 제거
-    aov_df = f_df[f_df['실결제 금액'] > 0].copy()
-    aov_df_dist = aov_df[aov_df['실결제 금액'] <= 1000000].copy() # 분포 시각화를 위해 100만원 이하로 제한
+    # 데이터 정제: 이미 정제된 f_df_growth를 기반으로 분포 시각화를 위해 100만원 이하로 제한
+    aov_df_dist = f_df_growth[f_df_growth['실결제 금액'] <= 1000000].copy() 
 
     col_aov1, col_aov2 = st.columns([1, 1])
     
     with col_aov1:
         # 그룹별 평균 객단가 (AOV) 바 차트
-        group_aov = aov_df.groupby('그룹')['실결제 금액'].mean().reset_index()
+        group_aov = f_df_growth.groupby('그룹')['실결제 금액'].mean().reset_index()
         fig_aov_bar = px.bar(group_aov, x='그룹', y='실결제 금액', 
                               title="그룹별 평균 객단가(AOV) 비교",
                               text_auto=',.0f',
