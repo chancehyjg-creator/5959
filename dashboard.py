@@ -844,28 +844,19 @@ with tab_growth:
     """)
 
     # 1. 일반 셀러 vs 킹댕즈: 유입 경로 비교
-    st.subheader("1️⃣ [유입 채널 비교] 지인 영업 vs SNS 파급력")
+    st.subheader("1️⃣ 일반 셀러 vs 킹댕즈: 상세 유입 경로 비교")
     
-    def group_channel(path):
-        path = str(path)
-        if '카카오' in path or 'Talk' in path: return '카카오톡(지인/개인)'
-        elif any(s in path for s in ['인스타', '유튜브', 'SNS', '페이스북']): return 'SNS(인플루언서)'
-        else: return '기타/직접유입'
-    
-    f_df['채널분류'] = f_df['주문경로'].apply(group_channel)
-    
-    channel_comp = f_df.groupby(['그룹', '채널분류']).size().reset_index(name='주문건수')
-    fig_chan_comp = px.bar(channel_comp, x='그룹', y='주문건수', color='채널분류',
-                            title="일반 셀러 vs 킹댕즈: 유입 경로 비중 비교 (%)",
-                            text_auto='.1f',
-                            color_discrete_map={'카카오톡(지인/개인)': '#FEE500', 'SNS(인플루언서)': '#E1306C', '기타/직접유입': '#CCCCCC'})
+    channel_comp = f_df.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
+    fig_chan_comp = px.bar(channel_comp, x='그룹', y='주문건수', color='주문경로',
+                            title="일반 셀러 vs 킹댕즈: 원본 유입 경로 비중 비교 (%)",
+                            text_auto='.1f')
     fig_chan_comp.update_layout(barnorm='percent')
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
     st.info("""
-    **💡 데이터 증명**
-    - **일반 셀러**: **카카오톡(지인)** 유입 비중이 압도적입니다. 이는 확장성보다는 기존 관계에 의존하는 '안정적 판매' 구조임을 뜻합니다.
-    - **킹댕즈**: **SNS(인플루언서)** 경로를 통한 외부 유입이 핵심입니다. 모르는 사람에게도 판매할 수 있는 '폭발적 확장성'을 보여줍니다.
+    **💡 데이터 분석 결과**
+    - **일반 셀러**: 특정 채널에 의존하기보다 다양한 경로를 통해 유입이 분산되어 있으며, 채널별 비중이 고르게 분포하고 있습니다.
+    - **킹댕즈**: 특정 SNS 채널을 통한 유입이 매우 강력하며, 해당 채널의 전파 속도에 따라 매출 스파이크가 결정되는 구조입니다.
     """)
 
     st.markdown("---")
