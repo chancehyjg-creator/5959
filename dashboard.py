@@ -855,10 +855,11 @@ with tab_growth:
     f_df['채널분류'] = f_df['주문경로'].apply(group_channel)
     
     channel_comp = f_df.groupby(['그룹', '채널분류']).size().reset_index(name='주문건수')
-    fig_chan_comp = px.bar(channel_comp, x='그룹', y='주문건수', color='채널분류', barnorm='percent',
+    fig_chan_comp = px.bar(channel_comp, x='그룹', y='주문건수', color='채널분류',
                             title="일반 셀러 vs 킹댕즈: 유입 경로 비중 비교 (%)",
                             text_auto='.1f',
                             color_discrete_map={'카카오톡(지인/개인)': '#FEE500', 'SNS(인플루언서)': '#E1306C', '기타/직접유입': '#CCCCCC'})
+    fig_chan_comp.update_layout(barnorm='percent')
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
     st.info("""
