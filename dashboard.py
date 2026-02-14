@@ -836,127 +836,124 @@ with tab4:
     st.plotly_chart(fig7, use_container_width=True)
 
 # --- 탭: 셀러 성장 전략 (신규) ---
+# --- 탭: 셀러 성장 전략 (보고서 형식) ---
 with tab_growth:
-    st.header("🎯 차세대 인플루언서 및 셀러 성장 전략")
-    st.markdown("""
-    이 쇼핑몰의 성장 핵심은 **'카카오톡 기반의 지인 판매(안정성)'**를 유지하면서, **'킹댕즈와 같은 강력한 인플루언서(폭발성)'**를 어떻게 지속적으로 수혈하느냐에 있습니다. 
-    1등 셀러인 '킹댕즈'의 데이터를 분해하여 유입 비결을 분석하고, 제2의 인플루언서를 위한 전략을 제안합니다.
+    st.header("📋 셀러 성장 및 인플루언서 영입 전략 보고서")
+    
+    # 1. 목적
+    st.markdown("### 1. 목적")
+    st.info("본 보고서는 쇼핑몰의 지속 가능한 성장을 위해 현재 안정적인 매출을 담당하는 **'지인 기반 셀러'**를 정예화하고, 폭발적인 확장이 가능한 **'제2의 킹댕즈(인플루언서)'**를 발굴 및 영입하기 위한 데이터 기반 전략 도출을 목적으로 함.")
+
+    # 2. 결론
+    st.markdown("### 2. 결론")
+    st.success("""
+    - **통합 운영 전략**: 일반 셀러의 '안정적 리텐션'과 인플루언서의 '신규 유입력'을 상호 보완적으로 운영해야 함.
+    - **인플루언서 영입**: 제주 지표에 특화된 프리미엄 상품군과 SNS용 콘텐츠 소스를 지원하여 인플루언서의 활동 명분을 강화해야 함.
+    - **보상 체계**: 단순 판매 수수료를 넘어 '신규 고객 유치 인센티브' 도입을 통해 플랫폼의 확장을 유도해야 함.
     """)
 
-    # 1. 일반 셀러 vs 킹댕즈: 유입 경로 비교
-    st.subheader("1️⃣ 일반 셀러 vs 킹댕즈: 상세 유입 경로 비교")
-    
-    # 데이터 집계 및 비중 계산
+    # 3. 배경
+    st.markdown("### 3. 배경")
+    st.markdown("""
+    - **성장 정체**: 현재 매출의 상당 부분이 지인 기반의 소규모 판매에 머물러 있어, 플랫폼 외부에서의 대규모 신규 유입이 절실함.
+    - **높은 의존도**: 1등 셀러(인플루언서)의 단발성 판매 시점에만 매출이 급증하는 현상이 반복되어, 지속적인 스파이크를 만들어낼 인플루언서 풀(Pool) 확보가 과제임.
+    """)
+
+    # 4. 정의
+    st.markdown("### 4. 정의")
+    col_def1, col_def2 = st.columns(2)
+    with col_def1:
+        st.write("**[안정형] 일반 셀러**")
+        st.caption("카카오톡 등 지인 기반 채널을 통해 충성도 높은 단골 고객 위주로 판매하는 셀러")
+    with col_def2:
+        st.write("**[폭발형] 인플루언서(킹댕즈)**")
+        st.caption("강력한 팬덤과 SNS 파급력을 바탕으로 외부 신규 고객을 단기간에 플랫폼으로 전이시키는 셀러")
+
+    # 5. 산출방식
+    st.markdown("### 5. 산출방식")
+    st.markdown("""
+    - **채널 기여도**: 주문 데이터에서 추출한 원본 `주문경로`를 셀러 그룹별로 비중 분석.
+    - **고객 획득**: 신규 고객 vs. 재구매 고객의 비중을 통해 셀러의 '새 피 수혈' 능력 측정.
+    - **매출 패턴**: 시계열 데이터를 활용한 매출 스파이크 지점 및 지속 기간 분석.
+    - **상품 적합도**: 각 그룹별 평균 객단가(AOV) 및 프리미엄 상품 판매 비중 교차 분석.
+    """)
+
+    st.markdown("---")
+
+    # 6. 분석결과
+    st.markdown("### 6. 분석결과")
+
+    # 6-1. 유입 경로 비교
+    st.subheader("📊 6-1. 상세 유입 경로 분석 (안정성 vs. 확장성)")
     channel_comp = f_df.groupby(['그룹', '주문경로']).size().reset_index(name='주문건수')
     group_totals = channel_comp.groupby('그룹')['주문건수'].transform('sum')
     channel_comp['비중(%)'] = (channel_comp['주문건수'] / group_totals * 100).round(1)
     
-    # 표 표시 (비중 중심)
     channel_pivot = channel_comp.pivot(index='주문경로', columns='그룹', values='비중(%)').fillna(0)
     st.write("**[상세 데이터] 유입 경로별 비중 (%)**")
     st.dataframe(channel_pivot.style.format("{:.1f}%").background_gradient(axis=0, cmap='YlGnBu'), use_container_width=True)
     
-    # 가로형 막대그래프 (주문경로와 % 모두 표시)
     channel_comp['레이블'] = channel_comp['주문경로'] + ": " + channel_comp['비중(%)'].astype(str) + "%"
-    
     fig_chan_comp = px.bar(channel_comp, y='그룹', x='주문건수', color='주문경로',
                             title="일반 셀러 vs 킹댕즈: 유입 경로 비중 분석 (%)",
-                            orientation='h',
-                            text='레이블')
-    
-    # 레이블 위치 및 포맷 설정
+                            orientation='h', text='레이블')
     fig_chan_comp.update_traces(textposition='inside')
     fig_chan_comp.update_layout(barnorm='percent', xaxis_title="유입 비중 (%)", yaxis_title="셀러 그룹", showlegend=False)
     st.plotly_chart(fig_chan_comp, use_container_width=True)
     
     st.info("""
-    **💡 데이터 분석 결과**
-    - **일반 셀러**: 특정 채널에 의존하기보다 다양한 경로를 통해 유입이 분산되어 있으며, 채널별 비중이 고르게 분포하고 있습니다.
-    - **킹댕즈**: 특정 SNS 채널을 통한 유입이 매우 강력하며, 해당 채널의 전파 속도에 따라 매출 스파이크가 결정되는 구조입니다.
-    """)
-    
-    st.success("""
-    **🚀 성장 전략 인사이트**
-    1. **안정성 기반의 스케일업 (일반 셀러)**: 분산된 채널 점유율은 사업의 리스크가 낮음을 의미합니다. 이 중 전환율이 우수한 채널을 선별하여 본사 차원의 '공동 광고'를 집행함으로써 유입의 절대 규모를 키워야 합니다.
-    2. **전파 속도 최적화 (인플루언서)**: 킹댕즈와 같은 인플루언서 판매 시에는 해당 SNS 채널의 알고리즘 피크 시간에 맞춰 상품을 오픈하고, '24시간 타임 세일'과 같은 긴박감을 더해 전파 속도를 매출로 즉각 전환시켜야 합니다.
-    3. **제주 브랜딩의 전이**: 인플루언서가 '강아지 셀럽'이라는 본업 외에 '제주 프리미엄 큐레이터'로서의 정체성을 가질 수 있도록 제주 과수원 테마의 전용 랜딩 페이지를 지원하여 팬들의 구매 명분을 강화해야 합니다.
+    **💡 데이터 분석 포인트**
+    - **일반 셀러**: 특정 채널에 의존하기보다 다양한 경로를 통해 유입이 분산되어 있어 운영적 안정성이 높음.
+    - **킹댕즈**: 특정 SNS 채널을 통한 유입이 절대적이며, 해당 채널의 전파 속도가 성장을 결정함.
     """)
 
-    st.markdown("---")
-
-    # 2. 신규 유입 기여도: 누가 쇼핑몰의 '새 피'를 수혈하는가?
-    st.subheader("2️⃣ [신규 고객 유치] 성장의 동력원 분석")
-    
+    # 6-2. 신규 고객 유치 기여도
+    st.subheader("📊 6-2. 고객 유형별 기여도 분석")
     cust_type = f_df.groupby(['그룹', '고객유형']).size().reset_index(name='주문건수')
     fig_cust_type = px.bar(cust_type, x='그룹', y='주문건수', color='고객유형', barmode='group',
-                            title="그룹별 신규 고객 vs 재구매 고객 주문 비중",
+                            title="그룹별 신규 고객 유치 능력 비교",
                             color_discrete_map={'신규 고객': '#00C897', '재구매 고객': '#008AF3'})
     st.plotly_chart(fig_cust_type, use_container_width=True)
-    
-    st.warning("**전략적 해석**: 일반 셀러는 '기존 고객'을 돌려쓰는 경향이 강한 반면, 킹댕즈는 **신규 고객을 외부에서 수집**해 플랫폼으로 데려옵니다. 쇼핑몰의 성장을 위해서는 킹댕즈 같은 '신규 유입형 셀러'가 필수적입니다.")
+    st.warning("**전략 결론**: 플랫폼 확장을 위해서는 신규 고객 유입 비중이 압도적으로 높은 '킹댕즈 스타일'의 셀러 영입이 가속화되어야 함.")
 
-    st.markdown("---")
-
-    # 3. 인플루언서 판매 패턴 분석: '단기 폭발'의 유효기간
-    st.subheader("3️⃣ [킹댕즈 집중 분석] 인플루언서 판매 스파이크 패턴")
-    
+    # 6-3. 킹댕즈 매출 스파이크 패턴
+    st.subheader("📊 6-3. 인플루언서 매출 폭발 패턴 (Time-series)")
     kd_only = f_df[f_df['그룹'] == '킹댕즈'].copy()
     if not kd_only.empty:
         kd_daily = kd_only.groupby('주문날짜')['실결제 금액'].sum().reset_index()
         fig_spike = px.line(kd_daily, x='주문날짜', y='실결제 금액', markers=True,
-                             title="킹댕즈의 매출 발생 주명 (Explosion Point)",
+                             title="킹댕즈 매출 발생 스파이크",
                              line_shape='spline', color_discrete_sequence=['#FF4B4B'])
-        
-        # 피크 지점 찾기
         peak_row = kd_daily.loc[kd_daily['실결제 금액'].idxmax()]
-        fig_spike.add_annotation(x=peak_row['주문날짜'],
-                                 y=peak_row['실결제 금액'],
-                                 text="판매 시작 & SNS 홍보 시점", showarrow=True, arrowhead=1)
+        fig_spike.add_annotation(x=peak_row['주문날짜'], y=peak_row['실결제 금액'],
+                                 text="SNS 홍보 및 공구 오픈", showarrow=True, arrowhead=1)
         st.plotly_chart(fig_spike, use_container_width=True)
-        
-        total_kd_rev = kd_only['실결제 금액'].sum()
-        st.info(f"**분석 결과**: 인플루언서 판매는 홍보 직후 **단 며칠 내에 매출이 집중**되는 경향이 있습니다. 이를 활용해 물류와 CS를 미리 대비하는 '인플루언서 공구 캘린더' 운영이 필요합니다.")
-    else:
-        st.error("킹댕즈 데이터가 선택된 필터에 포함되어 있지 않습니다.")
+        st.info("인플루언서 판매는 홍보 직후 단기간에 매출이 집중되므로, 이를 체계적으로 반복할 수 있는 '공구 캘린더' 확보가 필수적임.")
 
-    st.markdown("---")
-
-    # 4. 인플루언서가 선호하는 '콘텐츠용' 상품 조건
-    st.subheader("4️⃣ [상품 궁합] 인플루언서가 팔기 좋은 상품의 조건")
-    
+    # 6-4. 영입 타겟용 상품 조건
+    st.subheader("📊 6-4. 인플루언서 적합 상품 분석")
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        # 킹댕즈의 AOV vs 일반 셀러 AOV
         aov_comp = f_df.groupby('그룹')['실결제 금액'].mean().reset_index()
         fig_aov_comp = px.bar(aov_comp, x='그룹', y='실결제 금액', title="그룹별 객단가(AOV) 비교",
                                color='그룹', color_discrete_map={'킹댕즈': '#FF4B4B', '일반 셀러': '#1C83E1'})
         st.plotly_chart(fig_aov_comp, use_container_width=True)
-        
     with col_p2:
-        # 프리미엄 비중 비교
         grade_comp = f_df.groupby(['그룹', '상품성등급_그룹']).size().reset_index(name='건수')
         fig_grade_comp = px.bar(grade_comp, x='그룹', y='건수', color='상품성등급_그룹', barmode='relative',
-                                 title="그룹별 판매 상품 등급 비중",
+                                 title="판매 상품 프리미엄 비중",
                                  color_discrete_map={'프리미엄': '#FFD700', '일반': '#C0C0C0'})
         st.plotly_chart(fig_grade_comp, use_container_width=True)
 
     st.markdown("---")
-
-    # 5. 전략적 제언: 제2의 킹댕즈 영입을 위한 제안
-    st.subheader("5️⃣ [Recruitment] 제주 로컬 인플루언서 영입 전략")
     
-    st.markdown("""
-    킹댕즈의 사례를 볼 때, 우리가 영입해야 할 인플루언서는 **"제주의 가치를 스토리텔링할 수 있는 사람"**이어야 합니다.
-
-    #### **💡 킹댕즈 스타일의 인플루언서 영입 전략**
-    1. **제주 라이프스타일 인플루언서 타겟팅**: 
-       - 반려견과 함께 제주 여행을 하는 유튜버, 제주 독채 스테이 운영자 등을 영입하여 '제주의 정취'를 함께 판매합니다.
-    2. **'콘텐츠 소스' 본사 제공**: 
-       - 인플루언서가 판매를 잠시 중단하는 이유는 콘텐츠 고갈 때문입니다. 본사에서 과수원 드론 영상, 수확 브이로그 등 **SNS용 고퀄리티 소스**를 상시 제공해야 합니다.
-    3. **신규 고객 수혈 보상제**: 
-       - 단순히 판매 수수료만 주는 게 아니라, 인플루언서가 데려온 **신규 가입 고객 1인당 추가 인센티브**를 지급하여 '플랫폼 확장'의 동기를 부여합니다.
-    4. **제주 Only 독점 라인업**: 
-       - "오직 이 인플루언서 채널에서만 구매 가능한 **[산지직송 한정판 패키지]**"를 구성하여 인플루언서의 위상을 높여줍니다.
+    # 7. 향후 추진 전략 (Recruitment)
+    st.markdown("### 7. 향후 추진 전략")
+    st.info("""
+    - **제주 로컬 엠버서더**: 제주 가치를 스토리텔링할 수 있는 인플루언서 상시 영입.
+    - **콘텐츠 소스 지원**: SNS용 고퀄리티 브이로그 및 과수원 드론 영상 본사 제공.
+    - **신규 수혈 인센티브**: 신규 가입 고객 유치 기여도에 따른 성과급 차등 지급.
+    - **한정판 패키지**: 인플루언서 채널 전용 독점 라인업 구성을 통한 경쟁력 강화.
     """)
         
 with tab5:
